@@ -11,14 +11,14 @@ Camera::Camera()
     deltaStrafe = 0;
 
     posx = 0.0f;
-    posy = 0.0f;
+    posy = -1.0f;
     posz = -1.0f;
 
     dirx = 0.0f;
     diry = 0.0f;
     dirz = -1.0f;
 
-	angleh = M_PI / 8.0f;// 0.0f;
+	angleh = 0.0f;
 	anglev = 0.0f;
 
     xOrigin = -1;
@@ -43,7 +43,7 @@ void Camera::reset()
 	diry = 0.0f;
 	dirz = -1.0f;
 
-	angleh = M_PI / 8.0f;// 0.0f;
+	angleh = 0.0f;
 	anglev = 0.0f;
 
 	xOrigin = -1;
@@ -126,4 +126,9 @@ void Camera::grabCam(int x, int y)
 {
     xOrigin = x;
     yOrigin = y;
+}
+
+glm::vec3& Camera::getUpVector()
+{
+	return glm::vec3(_matrix[1][0], _matrix[1][1], _matrix[1][2]);
 }

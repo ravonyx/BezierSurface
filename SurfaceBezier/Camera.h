@@ -28,6 +28,7 @@ public:
 
 	glm::mat4 _matrix;
 
+	glm::vec3& getUpVector();
 	void updatePos(void);
 	void releaseCam(void);
 	void grabCam(int x, int y);

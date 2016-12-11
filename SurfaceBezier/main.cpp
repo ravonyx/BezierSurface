@@ -46,7 +46,7 @@ glm::mat4 view;
 
 EsgiShader basicShader, gridShader;
 
-GLuint vaoPoints, vertexBufferPoints;
+GLuint vaoCube, vertexBufferCube;
 GLuint mvp_location, position_location, color_location;
 
 /*var shaders*/
@@ -78,8 +78,8 @@ int main(int argc, char** argv)
 {
 	TwBar *bar;
 	cam = new Camera();
-	mode_ui = true;
-	infos = "In mode UI";
+	mode_ui = false;
+	infos = "In mode Camera";
 
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
@@ -161,11 +161,11 @@ int main(int argc, char** argv)
 	}
 	
 	/*VAO Points*/
-	glGenVertexArrays(1, &vaoPoints);
-	glBindVertexArray(vaoPoints);
+	glGenVertexArrays(1, &vaoCube);
+	glBindVertexArray(vaoCube);
 
-	glGenBuffers(1, &vertexBufferPoints);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferPoints);
+	glGenBuffers(1, &vertexBufferCube);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferCube);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(g_cube_buffer_data), g_cube_buffer_data, GL_STATIC_DRAW);
 	glEnableVertexAttribArray(position_location);
 	glVertexAttribPointer(position_location, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
@@ -178,10 +178,10 @@ int main(int argc, char** argv)
 	glBindVertexArray(0);
 
 	/** GESTION SOURIS **/
-	glutMouseFunc((GLUTmousebuttonfun)TwEventMouseButtonGLUT);
-	glutMotionFunc((GLUTmousemotionfun)TwEventMouseMotionGLUT);
-	glutPassiveMotionFunc((GLUTmousemotionfun)TwEventMouseMotionGLUT);
-	glutSpecialFunc((GLUTspecialfun)TwEventSpecialGLUT);
+	glutMouseFunc(mouseButton);
+	glutMotionFunc(mouseMove);
+	glutPassiveMotionFunc(NULL);
+	glutSpecialFunc(NULL);
 
 	// Create a tweak bar
 	bar = TwNewBar("BezierSurface");
@@ -209,7 +209,6 @@ void display(void)
 	glEnable(GL_DEPTH_TEST);
 
 	//Set view and zoom
-
 	glm::vec3 camPos = glm::vec3(cam->posx, cam->posy, cam->posz);
 	proj = glm::perspective(45.0f, (float)width / height, 0.01f, 2000.0f);
 	view = cam->GetOrientation() * glm::translate(camPos);
@@ -225,10 +224,11 @@ void display(void)
 	Quaternion rotationObj = Quaternion();
 
 	glm::mat4 model_mat;
-	glBindVertexArray(vaoPoints);
-	for (int i = 0; i < nbCubes; i++)
+	glBindVertexArray(vaoCube);
+	for (int i = 0; i < control_points.size(); i++)
 	{
-		model_mat = glm::translate(glm::vec3(0, i, 0)) * rotationObj.QuaternionToMatrix() *  glm::scale(glm::vec3(0.1, 0.1, 0.1));
+		glm::vec3 position = glm::vec3(control_points[i].x, control_points[i].y, control_points[i].z);
+		model_mat = glm::translate(position) * rotationObj.QuaternionToMatrix() *  glm::scale(glm::vec3(0.05, 0.05, 0.05));
 		glUniformMatrix4fv(basicShader.GetM(), 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
 		glDrawElements(GL_TRIANGLES, 12 * 3, GL_UNSIGNED_INT, (void*)0);
 	}
@@ -335,18 +335,19 @@ void mouseButton(int button, int state, int x, int y)
 			GLdouble Bx, By, Bz;
 			glm::vec4 viewport = glm::vec4(0, 0, width, height);
 
-			glm::vec3 pointPos = glm::unProject(glm::vec3(x, viewport[3] - y, 0), view, proj, viewport);
+			
+			glm::vec3 pointPosStart = glm::unProject(glm::vec3(x, viewport[3] - y, 0.0f), view, proj, viewport);
+			glm::vec3 pointPosEnd = glm::unProject(glm::vec3(x, viewport[3] - y, 1.0f), view, proj, viewport);
 
-			Bx = pointPos.x;
-			By = pointPos.y;
-			Bz = pointPos.z;
+			glm::vec3 dir = glm::normalize(pointPosEnd - pointPosStart);
+			glm::vec3 pos = pointPosStart + dir * 2.0f;
+
+			Bx = pos.x;
+			By = pos.y;
+			Bz = pos.z;
 
 			std::cout << Bx << " " << By << " " << Bz << std::endl;
-
-
 			control_points.push_back(Point(Bx, By, Bz));
-			//glBindBuffer(GL_ARRAY_BUFFER, vertexBufferPoints);
-			//glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * control_points.size(), control_points.data(), GL_STATIC_DRAW);
 		}
 
 		// Gestion camera en fonction du clic souris
