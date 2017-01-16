@@ -27,6 +27,7 @@
 std::vector< std::vector<Point> > all_control_point;
 std::vector< std::vector<Point> > all_result;
 std::vector<Point> control_points;
+std::vector<Point> lines;
 std::vector<std::vector<int>> index_curve;
 std::vector<std::vector<int>> index_extrusion;
 
@@ -46,7 +47,7 @@ glm::mat4 view;
 
 EsgiShader basicShader, gridShader;
 
-GLuint vaoCube, vertexBufferCube;
+GLuint vaoPoint, vaoLine, vertexBufferPoints, vertexBufferLine;
 GLuint mvp_location, position_location, color_location;
 
 /*var shaders*/
@@ -58,6 +59,8 @@ bool mode_ui;
 
 std::string infos;
 int nbCubes;
+
+std::vector <Point>lineVector;
 
 #pragma region header_function
 static  void __stdcall exitCallbackTw(void* clientData);
@@ -73,6 +76,8 @@ void mouseButton(int button, int state, int x, int y);
 void mouseMove(int x, int y);
 void reshape(int w, int h);
 #pragma endregion
+
+void majBuffer(int vertexBuffer, std::vector<Point> &vecteur);
 
 int main(int argc, char** argv)
 {
@@ -129,52 +134,28 @@ int main(int argc, char** argv)
 	float fragmentColor[4] = { 1.0f, 1.0f, 0.0f, 1.0f };
 	glProgramUniform4fv(basicShader.GetProgram(), color_location, 1, fragmentColor);
 
-	static const GLfloat g_cube_buffer_data[] = {
-		0.0f,  0.0f,  0.0f,
-		0.0f,  0.0f,  1.0f,
-		0.0f,  1.0f,  0.0f,
-		0.0f,  1.0f,  1.0f,
-		1.0f,  0.0f,  0.0f,
-		1.0f,  0.0f,  1.0f,
-		1.0f,  1.0f,  0.0f,
-		1.0f,  1.0f,  1.0f
-	};
-	
-	static unsigned int g_cube_buffer_indices[] = {
-		1, 7, 5,
-		1, 3, 7,
-		1, 4, 3,
-		1, 2, 4,
-		3, 8, 7,
-		3, 4, 8,
-		5, 7, 8,
-		5, 8, 6,
-		1, 5, 6,
-		1, 6, 2,
-		2, 6, 8,
-		2, 8, 4
-	};
-
-	for (int i = 0; i < 12 * 3; i++)
-	{
-		g_cube_buffer_indices[i] -= 1;
-	}
-	
 	/*VAO Points*/
-	glGenVertexArrays(1, &vaoCube);
-	glBindVertexArray(vaoCube);
+	glGenVertexArrays(1, &vaoPoint);
+	glBindVertexArray(vaoPoint);
 
-	glGenBuffers(1, &vertexBufferCube);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferCube);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_cube_buffer_data), g_cube_buffer_data, GL_STATIC_DRAW);
+	glGenBuffers(1, &vertexBufferPoints);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferPoints);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * control_points.size(), control_points.data(), GL_STATIC_DRAW);
 	glEnableVertexAttribArray(position_location);
 	glVertexAttribPointer(position_location, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
-	GLuint elementbuffer;
-	glGenBuffers(1, &elementbuffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * 12 * sizeof(unsigned int), g_cube_buffer_indices, GL_STATIC_DRAW);
-	
+	glBindVertexArray(0);
+
+	/*VAO Line*/
+	glGenVertexArrays(1, &vaoLine);
+	glBindVertexArray(vaoLine);
+
+	glGenBuffers(1, &vertexBufferLine);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferLine);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * lineVector.size(), lineVector.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(position_location);
+	glVertexAttribPointer(position_location, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+
 	glBindVertexArray(0);
 
 	/** GESTION SOURIS **/
@@ -224,13 +205,26 @@ void display(void)
 	Quaternion rotationObj = Quaternion();
 
 	glm::mat4 model_mat;
-	glBindVertexArray(vaoCube);
-	for (int i = 0; i < control_points.size(); i++)
+
+	glPointSize(5);
+	glBindVertexArray(vaoPoint);
+		
+	model_mat = rotationObj.QuaternionToMatrix();
+	majBuffer(vertexBufferPoints, control_points);
+	glUniformMatrix4fv(basicShader.GetM(), 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
+	glDrawArrays(GL_POINTS, 0, control_points.size());
+
+	glBindVertexArray(0);
+
+	glBindVertexArray(vaoLine);
+	if (control_points.size() >= 2)
 	{
-		glm::vec3 position = glm::vec3(control_points[i].x, control_points[i].y, control_points[i].z);
-		model_mat = glm::translate(position) * rotationObj.QuaternionToMatrix() *  glm::scale(glm::vec3(0.05, 0.05, 0.05));
+		lineVector.push_back(Point(control_points[0].x, control_points[0].y, control_points[0].z));
+		lineVector.push_back(Point(control_points[1].x, control_points[1].y, control_points[1].z));
+		model_mat = rotationObj.QuaternionToMatrix();
+		majBuffer(vertexBufferLine, lineVector);
 		glUniformMatrix4fv(basicShader.GetM(), 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
-		glDrawElements(GL_TRIANGLES, 12 * 3, GL_UNSIGNED_INT, (void*)0);
+		glDrawArrays(GL_LINES, 0, lineVector.size());
 	}
 	glBindVertexArray(0);
 
@@ -348,6 +342,8 @@ void mouseButton(int button, int state, int x, int y)
 
 			std::cout << Bx << " " << By << " " << Bz << std::endl;
 			control_points.push_back(Point(Bx, By, Bz));
+			majBuffer(vertexBufferPoints, control_points);
+			lines.push_back(Point(Bx, By, Bz));
 		}
 
 		// Gestion camera en fonction du clic souris
@@ -377,6 +373,12 @@ void __stdcall exitCallbackTw(void* clientData)
 {
 	TwTerminate();
 	glutLeaveMainLoop();
+}
+
+void majBuffer(int vertexBuffer, std::vector<Point> &vecteur)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * vecteur.size(), vecteur.data(), GL_STATIC_DRAW);
 }
 
 /*void mouseZoom(int button, int dir, int x, int y)
