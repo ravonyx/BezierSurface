@@ -20,22 +20,24 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\libs\common\EsgiShader.cpp" />
+    <ClCompile Include="Bezier.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Math.cpp" />
-    <ClCompile Include="Bezier.cpp" />
     <ClCompile Include="Point.cpp" />
     <ClCompile Include="Quaternion.cpp" />
+    <ClCompile Include="PatchManager.cpp" />
     <ClCompile Include="Tools.cpp" />
     <ClCompile Include="Vertex.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\libs\common\EsgiShader.h" />
+    <ClInclude Include="Bezier.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Math.h" />
-    <ClInclude Include="Bezier.h" />
     <ClInclude Include="Point.h" />
     <ClInclude Include="Quaternion.hpp" />
+    <ClInclude Include="PatchManager.h" />
     <ClInclude Include="Tools.h" />
     <ClInclude Include="Vertex.h" />
   </ItemGroup>

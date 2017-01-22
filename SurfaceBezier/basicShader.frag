@@ -1,13 +1,13 @@
 #version 120
 
-uniform vec4 attr_color;
+in vec4 color;
 
 void main()
 {
-	vec4 color;
-	color.x = 0.0f;
-	color.y = 0.0f;
-	color.z = 255.0f;
-	color.w = 1.0f;
+	vec4 colorTst;
+	colorTst.x = 0.0f;
+	colorTst.y = 0.0f;
+	colorTst.z = 255.0f;
+	colorTst.w = 1.0f;
     gl_FragColor = color;
 }

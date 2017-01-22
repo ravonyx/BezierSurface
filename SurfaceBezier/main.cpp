@@ -5,6 +5,7 @@
 #include "Bezier.h"
 #include "Camera.h"
 #include "EsgiShader.h"
+#include "PatchManager.h"
 #pragma endregion
 
 #pragma region general_include
@@ -24,21 +25,17 @@
 #include <AntTweakBar.h>
 #pragma endregion
 
-std::vector< std::vector<Point> > all_control_point;
-std::vector< std::vector<Point> > all_result;
-std::vector<Point> control_points;
 std::vector<Point> lines;
-std::vector<std::vector<int>> index_curve;
-std::vector<std::vector<int>> index_extrusion;
 
 int current_index = 0;
 int width = 1500;
 int height = 800;
 
 float first_mousex, first_mousey;
+float last_mousex, last_mousey;
 float last_movex, last_movey;
 
-int _selectMovePointI = 0, _selectMovePointJ = 0;
+int _selectMovePointI = -1, _selectMovePointJ = -1;
 
 Quaternion rotation;
 
@@ -46,8 +43,7 @@ glm::mat4 proj;
 glm::mat4 view;
 
 EsgiShader basicShader, gridShader;
-
-GLuint vaoPoint, vaoLine, vertexBufferPoints, vertexBufferLine;
+GLuint vaoPoint, vaoLine, vertexBufferPoints, vertexBufferColors, vertexBufferLine;
 GLuint mvp_location, position_location, color_location;
 
 /*var shaders*/
@@ -55,12 +51,14 @@ int programBasicID;
 GLuint attr_color;
 
 Camera *cam;
-bool mode_ui;
+bool mode_ui, decrease;
+int index;
+std::string indexStr;
 
 std::string infos;
-int nbCubes;
-
 std::vector <Point>lineVector;
+
+PatchManager patchMng;
 
 #pragma region header_function
 static  void __stdcall exitCallbackTw(void* clientData);
@@ -69,21 +67,24 @@ void display(void);
 void computePos(int unused);
 void terminate();
 
-void mouseZoom(int button, int dir, int x, int y);
 void keyboardDown(unsigned char key, int x, int y);
 void keyboardUp(unsigned char key, int x, int y);
+void keyboardSpecDown(int key, int x, int y);
+void keyboardSpecUp(int key, int x, int y);
 void mouseButton(int button, int state, int x, int y);
 void mouseMove(int x, int y);
 void reshape(int w, int h);
 #pragma endregion
 
-void majBuffer(int vertexBuffer, std::vector<Point> &vecteur);
+template<typename T>
+void majBuffer(int vertexBuffer, std::vector<T> &vecteur);
 
 int main(int argc, char** argv)
 {
 	TwBar *bar;
 	cam = new Camera();
 	mode_ui = false;
+	decrease = false;
 	infos = "In mode Camera";
 
 	glutInit(&argc, argv);
@@ -119,7 +120,7 @@ int main(int argc, char** argv)
 	gridShader.Create();
 
 	position_location = glGetAttribLocation(basicShader.GetProgram(), "a_position");
-	color_location = glGetUniformLocation(basicShader.GetProgram(), "fragmentColor");
+	color_location = glGetAttribLocation(basicShader.GetProgram(), "a_color");
 
 	GLuint uniVP = glGetUniformLocation(gridShader.GetProgram(), "VP");
 	gridShader.SetVP(uniVP);
@@ -129,22 +130,34 @@ int main(int argc, char** argv)
 	basicShader.SetM(uniM);
 
 	rotation = Quaternion();
-	nbCubes = 3;
-
-	float fragmentColor[4] = { 1.0f, 1.0f, 0.0f, 1.0f };
-	glProgramUniform4fv(basicShader.GetProgram(), color_location, 1, fragmentColor);
+	patchMng = PatchManager(5.0, 3.0);
 
 	/*VAO Points*/
 	glGenVertexArrays(1, &vaoPoint);
 	glBindVertexArray(vaoPoint);
+	
+	patchMng.generateControlPoints();
+	std::vector<Point> controlPoints = patchMng.getControlPoints();
+	std::vector<Color> colors = patchMng.getColors();
 
 	glGenBuffers(1, &vertexBufferPoints);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferPoints);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * control_points.size(), control_points.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * controlPoints.size(), controlPoints.data(), GL_STATIC_DRAW);
 	glEnableVertexAttribArray(position_location);
 	glVertexAttribPointer(position_location, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
+	glGenBuffers(1, &vertexBufferColors);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferColors);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Color) * colors.size(), colors.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(color_location);
+	glVertexAttribPointer(color_location, 4, GL_FLOAT, GL_FALSE, 0, (void*)0);
+
 	glBindVertexArray(0);
+
+	colors[0].r = 1.0f; colors[0].g = 1.0f; colors[0].b = 1.0f;
+	majBuffer(vertexBufferColors, colors);
+	index = 0;
+	indexStr = std::to_string(index);
 
 	/*VAO Line*/
 	glGenVertexArrays(1, &vaoLine);
@@ -162,13 +175,20 @@ int main(int argc, char** argv)
 	glutMouseFunc(mouseButton);
 	glutMotionFunc(mouseMove);
 	glutPassiveMotionFunc(NULL);
-	glutSpecialFunc(NULL);
+	glutSpecialFunc(keyboardSpecDown);
+	glutSpecialUpFunc(keyboardSpecUp);
 
 	// Create a tweak bar
 	bar = TwNewBar("BezierSurface");
 
 	TwDefine(" BezierSurface size='200 300' color='86 101 115' valueswidth=fit ");
+	float refresh = 0.1f;
+	TwSetParam(bar, NULL, "refresh", TW_PARAM_FLOAT, 1, &refresh);
 	TwAddVarRO(bar, "Output", TW_TYPE_STDSTRING, &infos," label='Infos' ");
+	//TwAddVarRW(bar, "LightDir", TW_TYPE_DIR3F, &light_direction, " label='Light direction' opened=true help='Change the light direction.' ");
+	TwAddVarRO(bar, "Index", TW_TYPE_STDSTRING, &indexStr, " label='Index' help='Change index of the point' ");
+
+
 	TwAddSeparator(bar, "settings object", "");
 	TwAddVarRW(bar, "ObjRotation", TW_TYPE_QUAT4F, &rotation, " label='Object rotation' opened=true help='Change the object orientation.' ");
 	TwAddSeparator(bar, "program", "");
@@ -210,24 +230,23 @@ void display(void)
 	glBindVertexArray(vaoPoint);
 		
 	model_mat = rotationObj.QuaternionToMatrix();
-	majBuffer(vertexBufferPoints, control_points);
 	glUniformMatrix4fv(basicShader.GetM(), 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
-	glDrawArrays(GL_POINTS, 0, control_points.size());
+	std::vector<Point> controlPoints = patchMng.getControlPoints();
+	glDrawArrays(GL_POINTS, 0, controlPoints.size());
 
 	glBindVertexArray(0);
 
-	glBindVertexArray(vaoLine);
-	if (control_points.size() >= 2)
-	{
-		lineVector.push_back(Point(control_points[0].x, control_points[0].y, control_points[0].z));
-		lineVector.push_back(Point(control_points[1].x, control_points[1].y, control_points[1].z));
-		model_mat = rotationObj.QuaternionToMatrix();
-		majBuffer(vertexBufferLine, lineVector);
-		glUniformMatrix4fv(basicShader.GetM(), 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
-		glDrawArrays(GL_LINES, 0, lineVector.size());
-	}
-	glBindVertexArray(0);
-
+	//glBindVertexArray(vaoLine);
+	//if (control_points.size() >= 2)
+	//{
+	//	lineVector.push_back(Point(control_points[0].x, control_points[0].y, control_points[0].z));
+	//	lineVector.push_back(Point(control_points[1].x, control_points[1].y, control_points[1].z));
+	//	model_mat = rotationObj.QuaternionToMatrix();
+	//	majBuffer(vertexBufferLine, lineVector);
+	//	glUniformMatrix4fv(basicShader.GetM(), 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
+	//	glDrawArrays(GL_LINES, 0, lineVector.size());
+	//}
+	//glBindVertexArray(0);
 
 	glUseProgram(gridShader.GetProgram());
 	glDrawArrays(GL_POINTS, 0, 1);
@@ -260,6 +279,55 @@ void computePos(int unused)
 #pragma region event_callback
 void keyboardDown(unsigned char key, int x, int y)
 {
+	
+	if (key == '\t' && decrease)
+	{
+		index -= 1;
+
+		std::vector<Color> colors = patchMng.getColors();
+		if (index < 0)
+			index = colors.size() - 1;
+
+		if (index == colors.size() - 1)
+		{
+			colors[0].r = 0.0f; colors[0].g = 0.0f; colors[0].b = 1.0f;
+		}
+		else if (index < colors.size())
+		{
+			colors[index + 1].r = 0.0f; colors[index + 1].g = 0.0f; colors[index + 1].b = 1.0f;
+		}
+		colors[index].r = 1.0f; colors[index].g = 1.0f; colors[index].b = 1.0f;
+		majBuffer(vertexBufferColors, colors);
+		indexStr = std::to_string(index);
+	}
+	else if (key == '\t')
+	{
+		index += 1;
+
+		std::vector<Color> colors = patchMng.getColors();
+		if (index == colors.size())
+			index = 0;
+
+		if (index > 0)
+		{
+			colors[index - 1].r = 0.0f; colors[index - 1].g = 0.0f; colors[index - 1].b = 1.0f;
+		}
+		colors[index].r = 1.0f; colors[index].g = 1.0f; colors[index].b = 1.0f;
+		majBuffer(vertexBufferColors, colors);
+		indexStr = std::to_string(index);
+	}
+
+	if (key == '+')
+	{
+		patchMng.getControlPoints()[index].y += 0.1;
+		majBuffer(vertexBufferPoints, patchMng.getControlPoints());
+	}
+	if (key == '-')
+	{
+		patchMng.getControlPoints()[index].y -= 0.1;
+		majBuffer(vertexBufferPoints, patchMng.getControlPoints());
+	}
+
 	if (key == ' ')
 	{
 		mode_ui = !mode_ui;
@@ -302,6 +370,27 @@ void keyboardDown(unsigned char key, int x, int y)
 	glutPostRedisplay();
 }
 
+void keyboardSpecDown(int key, int x, int y)
+{
+	if (key == 112)
+	{
+		std::cout << "shift" << std::endl;
+		decrease = true;
+	}
+}
+
+
+void keyboardSpecUp(int key, int x, int y)
+{
+	if (key == 112)
+	{
+		std::cout << "shift up" << std::endl;
+		decrease = false;
+	}
+}
+
+
+
 void keyboardUp(unsigned char key, int xx, int yy)
 {
 	if (!mode_ui)
@@ -320,31 +409,33 @@ void keyboardUp(unsigned char key, int xx, int yy)
 	}
 }
 
+float pointToLineDistance(glm::vec3 point, glm::vec3 start, glm::vec3 end)
+{
+	glm::vec3 dir = glm::normalize(end - start);
+	glm::vec3 startToPoint = point - start;
+
+	float dotProduct = dot(glm::normalize(startToPoint), dir);
+	float normcalc = norm(dir);
+	std::cout << normcalc << std::endl;
+
+	float projection = dotProduct / 5;
+	std::cout << projection << std::endl;
+	glm::vec3 nearPoint;
+	if (projection < 0)
+		nearPoint = start;
+	else if (projection > 1)
+		nearPoint = end;
+	else
+		nearPoint = end * projection + start * (1 - projection);// VectorAdd(VectorMultiply(vEnd, Projection), VectorMultiply(vStart, 1 - Projection));
+	
+	float distance = norm(nearPoint - point); // VectorLength(VectorSubtract(NearPoint, vPoint));
+	return distance;
+}
+
 void mouseButton(int button, int state, int x, int y)
 {
 	if (!mode_ui)
 	{
-		if (button == GLUT_LEFT_BUTTON && state == GLUT_UP)
-		{
-			GLdouble Bx, By, Bz;
-			glm::vec4 viewport = glm::vec4(0, 0, width, height);
-
-			
-			glm::vec3 pointPosStart = glm::unProject(glm::vec3(x, viewport[3] - y, 0.0f), view, proj, viewport);
-			glm::vec3 pointPosEnd = glm::unProject(glm::vec3(x, viewport[3] - y, 1.0f), view, proj, viewport);
-
-			glm::vec3 dir = glm::normalize(pointPosEnd - pointPosStart);
-			glm::vec3 pos = pointPosStart + dir * 2.0f;
-
-			Bx = pos.x;
-			By = pos.y;
-			Bz = pos.z;
-
-			std::cout << Bx << " " << By << " " << Bz << std::endl;
-			control_points.push_back(Point(Bx, By, Bz));
-			majBuffer(vertexBufferPoints, control_points);
-			lines.push_back(Point(Bx, By, Bz));
-		}
 
 		// Gestion camera en fonction du clic souris
 		if (button == GLUT_RIGHT_BUTTON)
@@ -375,51 +466,12 @@ void __stdcall exitCallbackTw(void* clientData)
 	glutLeaveMainLoop();
 }
 
-void majBuffer(int vertexBuffer, std::vector<Point> &vecteur)
+template<typename T>
+void majBuffer(int vertexBuffer, std::vector<T> &vecteur)
 {
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * vecteur.size(), vecteur.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(T) * vecteur.size(), vecteur.data(), GL_STATIC_DRAW);
 }
-
-/*void mouseZoom(int button, int dir, int x, int y)
-{
-	g_scale = 0;
-	if (dir > 0)
-		g_scale += 0.05f;
-	else
-		g_scale -= 0.05f;
-	if (g_scale < -1)
-		g_scale = -1;
-	else if (g_scale > 1)
-		g_scale = 1;
-
-	if ((g_display_manager.scale_control_points && _selectMovePointI != -1 && _selectMovePointJ != -1) && mode_ui)
-	{
-		int index_curve_current = -1;
-		for (unsigned int i = 0; i < index_curve.size(); i++)
-		{
-			for (unsigned int j = 0; j < index_curve[i].size(); j++)
-			{
-				if (index_curve[i][j] == _selectMovePointI)
-				{
-					index_curve_current = i;
-				}
-			}
-		}
-		for (unsigned int i = 0; i < index_curve[index_curve_current].size(); i++)
-		{
-			for (size_t j = 0; j < all_control_point[index_curve[index_curve_current][i]].size(); ++j)
-			{
-				if (j != _selectMovePointJ || _selectMovePointI != index_curve[index_curve_current][i])
-					all_control_point[index_curve[index_curve_current][i]][j] = all_control_point[index_curve[index_curve_current][i]][j] +
-					(all_control_point[_selectMovePointI][_selectMovePointJ] - all_control_point[index_curve[index_curve_current][i]][j]) * g_scale;
-			}
-		}
-	}
-
-	
-	glutPostRedisplay();
-}*/
 
 void mouseMove(int x, int y)
 {
@@ -428,38 +480,3 @@ void mouseMove(int x, int y)
 
 	glutPostRedisplay();
 }
-
-/*void validate_junction(Fl_Widget *w, void *data)
-{
-	int choice = choice_junction->value();
-	int nb_curves = all_control_point.size();
-	int nb_points = all_control_point[nb_curves - 1].size();
-	float t = 2.0f;
-
-	Point point, point_temp;
-	Point last_point = all_control_point[nb_curves - 1][nb_points - 1];
-	Point second_to_last = all_control_point[nb_curves - 1][nb_points - 2];
-	Point third_to_last = all_control_point[nb_curves - 1][nb_points - 3];
-
-	switch (choice) 
-	{
-		case 1:
-			control_points.push_back(last_point);
-			break;
-		case 2:
-			point = second_to_last * (1 - t) + last_point * t;
-			control_points.push_back(last_point);
-			control_points.push_back(point);
-			break;
-		case 3:
-			point = second_to_last * (1 - t) + last_point * t;
-			control_points.push_back(last_point);
-			control_points.push_back(point);
-
-			point_temp = third_to_last * (1 - t) + last_point * t;
-			point = point_temp * (1 - t) + point * t;
-			control_points.push_back(point);
-			break;
-	}
-}*/
-
