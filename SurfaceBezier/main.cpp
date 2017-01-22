@@ -436,7 +436,6 @@ void mouseButton(int button, int state, int x, int y)
 {
 	if (!mode_ui)
 	{
-
 		// Gestion camera en fonction du clic souris
 		if (button == GLUT_RIGHT_BUTTON)
 		{
