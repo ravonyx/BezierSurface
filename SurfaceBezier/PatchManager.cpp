@@ -53,6 +53,24 @@ void PatchManager::majControlPoints()
 	}
 }
 
+void PatchManager::randomizeControlPoints()
+{
+	for (int i = 0; i < allControlPoints.size(); i++)
+	{
+		for (int j = 0; j < allControlPoints[i].size(); j++)
+		{
+			allControlPoints[i][j].x = getRandomNumber(-10, 10) * 0.1f;
+			allControlPoints[i][j].y = getRandomNumber(-10, 10) * 0.1f;
+		}
+	}
+}
+
+
+float PatchManager::getRandomNumber(int a, int b)
+{
+		return rand() % (b - a) + a;
+}
+
 std::vector<Point>& PatchManager::getControlPoints()
 {
 	return controlPoints;
@@ -66,4 +84,10 @@ std::vector<std::vector<Point>>& PatchManager::getAllControlPoints()
 std::vector<Color>& PatchManager::getColors()
 {
 	return colors;
+}
+
+std::vector<Point> PatchManager::getBezierCurveOnRow(std::vector<Point> points)
+{
+
+	return std::vector<Point>();
 }

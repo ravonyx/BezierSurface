@@ -22,13 +22,13 @@
     <ClCompile Include="Point.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\libs\common\EsgiShader.cpp">
+    <ClCompile Include="PatchManager.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\EsgiShader.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="Bezier.cpp">
-      <Filter>Headers</Filter>
-    </ClCompile>
-    <ClCompile Include="PatchManager.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>
@@ -51,13 +51,13 @@
     <ClInclude Include="Point.h">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\libs\common\EsgiShader.h">
+    <ClInclude Include="PatchManager.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\EsgiShader.h">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="Bezier.h">
-      <Filter>Sources</Filter>
-    </ClInclude>
-    <ClInclude Include="PatchManager.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

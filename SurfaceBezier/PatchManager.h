@@ -1,6 +1,7 @@
 
 #include <vector>
 #include "Point.h"
+#include "Bezier.h"
 
 class PatchManager
 {
@@ -15,8 +16,11 @@ class PatchManager
 		PatchManager(float inbRows, float inbPointsPerRow);
 		void generateControlPoints();
 		void majControlPoints();
+		void randomizeControlPoints();
 
+		float getRandomNumber(int a, int b);
 		std::vector<Point>& getControlPoints();
 		std::vector<std::vector<Point>>& getAllControlPoints();
 		std::vector<Color>& getColors();
+		std::vector<Point> getBezierCurveOnRow(std::vector<Point> points);
 }; 
