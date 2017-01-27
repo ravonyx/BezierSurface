@@ -22,6 +22,8 @@ class Bezier
 		//Raccordements avec des niveau allant de 0 à 2 C0, C1, C2
 		std::vector<glm::vec3> Bezier::Raccord(int level, std::vector<glm::vec3> points, std::vector<int> paramSpace);
 
+		//Fonction sur 3 axes
+
 		//Extrusions functions
 		std::vector<glm::vec3> simpleExtrude(std::vector<glm::vec3> points, float length, float step, float scale);
 		std::vector<glm::vec3> revolutionExtrude(std::vector<glm::vec3> points, float step, float radius);

@@ -11,6 +11,9 @@ class PatchManager
 		std::vector< std::vector<Point> > allControlPoints;
 		std::vector<Point> controlPoints;
 		std::vector<Color> colors;
+
+		Bezier bezierManager;
+
 	public:
 		PatchManager();
 		PatchManager(float inbRows, float inbPointsPerRow);
@@ -22,5 +25,5 @@ class PatchManager
 		std::vector<Point>& getControlPoints();
 		std::vector<std::vector<Point>>& getAllControlPoints();
 		std::vector<Color>& getColors();
-		std::vector<Point> getBezierCurveOnRow(std::vector<Point> points);
+		std::vector<Point> getBezierCurveOnRow(std::vector<Point> points, int steps, std::vector<int> parameterSpace);
 }; 

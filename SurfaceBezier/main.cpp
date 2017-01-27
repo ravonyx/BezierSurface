@@ -348,6 +348,12 @@ void keyboardDown(unsigned char key, int x, int y)
 			glutSpecialFunc(NULL);
 		}
 	}
+
+	if (key == 'e')
+	{
+		patchMng.getBezierCurveOnRow(patchMng.getControlPoints(), 20, std::vector<int>());
+	}
+
 	if (!mode_ui)
 	{
 		switch (key)

@@ -86,8 +86,16 @@ std::vector<Color>& PatchManager::getColors()
 	return colors;
 }
 
-std::vector<Point> PatchManager::getBezierCurveOnRow(std::vector<Point> points)
+std::vector<Point> PatchManager::getBezierCurveOnRow(std::vector<Point> points, int steps, std::vector<int> parameterSpace)
 {
-
+	std::vector<glm::vec3> gPoints = std::vector<glm::vec3>();
+	parameterSpace = std::vector<int>();
+	parameterSpace.push_back(0);
+	parameterSpace.push_back(10);
+	for (int i = 0; i < points.size(); i++)
+	{
+		gPoints.push_back(glm::vec3(points[i].x, points[i].y, points[i].z));
+	}
+	bezierManager.CasteljauBezier(gPoints, 20, parameterSpace);
 	return std::vector<Point>();
 }
