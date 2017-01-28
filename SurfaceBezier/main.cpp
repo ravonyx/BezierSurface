@@ -23,6 +23,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <AntTweakBar.h>
+#include <time.h>
 #pragma endregion
 
 std::vector<Point> lines;
@@ -62,10 +63,9 @@ PatchManager patchMng;
 
 #pragma region header_function
 static  void __stdcall exitCallbackTw(void* clientData);
-void idle();
+static  void __stdcall randomizeCallbackTw(void* clientData);
 void display(void);
 void computePos(int unused);
-void terminate();
 
 void keyboardDown(unsigned char key, int x, int y);
 void keyboardUp(unsigned char key, int x, int y);
@@ -95,13 +95,14 @@ int main(int argc, char** argv)
 	TwInit(TW_OPENGL, NULL);
 	glewInit();
 
+	srand(time(0));
+
 	//Callback functions
 	glutKeyboardFunc(keyboardDown);
 	glutKeyboardUpFunc(keyboardUp);
 	//glutMouseWheelFunc(mouseZoom);
 
 	glutDisplayFunc(display);
-	glutIdleFunc(idle);
 	glutReshapeFunc(reshape);
 	glutTimerFunc(10, computePos, 0);
 
@@ -191,6 +192,8 @@ int main(int argc, char** argv)
 
 	TwAddSeparator(bar, "settings object", "");
 	TwAddVarRW(bar, "ObjRotation", TW_TYPE_QUAT4F, &rotation, " label='Object rotation' opened=true help='Change the object orientation.' ");
+	TwAddButton(bar, "Randomize", &randomizeCallbackTw, nullptr, "");
+
 	TwAddSeparator(bar, "program", "");
 	TwAddButton(bar, "Exit", &exitCallbackTw, nullptr, "");
 
@@ -198,7 +201,6 @@ int main(int argc, char** argv)
 	_selectMovePointJ = -1;
 
 	glutMainLoop();
-	terminate();
 	return 1;
 }
 
@@ -253,6 +255,7 @@ void display(void)
 
 	TwDraw();
 	glutSwapBuffers();
+	glutPostRedisplay();
 }
 
 void reshape(int w, int h)
@@ -262,11 +265,6 @@ void reshape(int w, int h)
 	glViewport(0, 0, width, height);
 
 	proj = glm::perspective(45.0f, (float)width / height, 0.01f, 2000.0f);
-}
-
-void idle()
-{
-	glutPostRedisplay();
 }
 
 /** GESTION DEPLACEMENT CAMERA **/
@@ -460,16 +458,19 @@ void mouseButton(int button, int state, int x, int y)
 	glutPostRedisplay();
 }
 
-void terminate()
-{
-	TwTerminate();
-}
-
 void __stdcall exitCallbackTw(void* clientData)
 {
 	TwTerminate();
 	glutLeaveMainLoop();
 }
+
+void __stdcall randomizeCallbackTw(void* clientData)
+{
+	patchMng.randomizeControlPoints();
+	majBuffer(vertexBufferPoints, patchMng.getControlPoints());
+	glutPostRedisplay();
+}
+
 
 template<typename T>
 void majBuffer(int vertexBuffer, std::vector<T> &vecteur)

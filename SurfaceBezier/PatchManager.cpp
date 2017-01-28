@@ -59,16 +59,17 @@ void PatchManager::randomizeControlPoints()
 	{
 		for (int j = 0; j < allControlPoints[i].size(); j++)
 		{
-			allControlPoints[i][j].x = getRandomNumber(-10, 10) * 0.1f;
-			allControlPoints[i][j].y = getRandomNumber(-10, 10) * 0.1f;
+			//allControlPoints[i][j].x = getRandomNumber(-10, 10) * 0.1f;
+			allControlPoints[i][j].y = getRandomNumber(0, 1);
 		}
 	}
+	majControlPoints();
 }
 
 
 float PatchManager::getRandomNumber(int a, int b)
 {
-		return rand() % (b - a) + a;
+	return a + ((float)rand() / (float)RAND_MAX) * (b - a);
 }
 
 std::vector<Point>& PatchManager::getControlPoints()
