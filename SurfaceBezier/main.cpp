@@ -44,7 +44,7 @@ glm::mat4 proj;
 glm::mat4 view;
 
 EsgiShader basicShader, gridShader;
-GLuint vaoPoint, vaoLine, vertexBufferPoints, vertexBufferColors, vertexBufferLine;
+GLuint vaoPoint, vaoCasteljauPoints, vertexBufferPoints, vertexBufferColors, vertexBufferCasteljauPoints;
 GLuint mvp_location, position_location, color_location;
 
 /*var shaders*/
@@ -161,12 +161,14 @@ int main(int argc, char** argv)
 	indexStr = std::to_string(index);
 
 	/*VAO Line*/
-	glGenVertexArrays(1, &vaoLine);
-	glBindVertexArray(vaoLine);
+	glGenVertexArrays(1, &vaoCasteljauPoints);
+	glBindVertexArray(vaoCasteljauPoints);
 
-	glGenBuffers(1, &vertexBufferLine);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferLine);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * lineVector.size(), lineVector.data(), GL_STATIC_DRAW);
+
+	std::vector<Point> casteljauPoints = patchMng.getCasteljauPoints();
+	glGenBuffers(1, &vertexBufferCasteljauPoints);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferCasteljauPoints);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * casteljauPoints.size(), casteljauPoints.data(), GL_STATIC_DRAW);
 	glEnableVertexAttribArray(position_location);
 	glVertexAttribPointer(position_location, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
@@ -231,24 +233,15 @@ void display(void)
 	glPointSize(5);
 	glBindVertexArray(vaoPoint);
 		
-	model_mat = rotationObj.QuaternionToMatrix();
 	glUniformMatrix4fv(basicShader.GetM(), 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
-	std::vector<Point> controlPoints = patchMng.getControlPoints();
-	glDrawArrays(GL_POINTS, 0, controlPoints.size());
+	glDrawArrays(GL_POINTS, 0, patchMng.getControlPoints().size());
 
 	glBindVertexArray(0);
 
-	//glBindVertexArray(vaoLine);
-	//if (control_points.size() >= 2)
-	//{
-	//	lineVector.push_back(Point(control_points[0].x, control_points[0].y, control_points[0].z));
-	//	lineVector.push_back(Point(control_points[1].x, control_points[1].y, control_points[1].z));
-	//	model_mat = rotationObj.QuaternionToMatrix();
-	//	majBuffer(vertexBufferLine, lineVector);
-	//	glUniformMatrix4fv(basicShader.GetM(), 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
-	//	glDrawArrays(GL_LINES, 0, lineVector.size());
-	//}
-	//glBindVertexArray(0);
+	glBindVertexArray(vaoCasteljauPoints);
+	glUniformMatrix4fv(basicShader.GetM(), 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
+	glDrawArrays(GL_POINTS, 0, patchMng.getCasteljauPoints().size());
+	glBindVertexArray(0);
 
 	glUseProgram(gridShader.GetProgram());
 	glDrawArrays(GL_POINTS, 0, 1);
@@ -350,6 +343,7 @@ void keyboardDown(unsigned char key, int x, int y)
 	if (key == 'e')
 	{
 		patchMng.getBezierCurveOnRow(patchMng.getControlPoints(), 20, std::vector<int>());
+		majBuffer(vertexBufferCasteljauPoints, patchMng.getCasteljauPoints());
 	}
 
 	if (!mode_ui)

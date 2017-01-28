@@ -10,6 +10,7 @@ class PatchManager
 		float nbPointsPerRow;
 		std::vector< std::vector<Point> > allControlPoints;
 		std::vector<Point> controlPoints;
+		std::vector<Point> casteljauPoints;
 		std::vector<Color> colors;
 
 		Bezier bezierManager;
@@ -22,8 +23,9 @@ class PatchManager
 		void randomizeControlPoints();
 
 		float getRandomNumber(int a, int b);
+		std::vector<Point>& getCasteljauPoints();
 		std::vector<Point>& getControlPoints();
 		std::vector<std::vector<Point>>& getAllControlPoints();
 		std::vector<Color>& getColors();
-		std::vector<Point> getBezierCurveOnRow(std::vector<Point> points, int steps, std::vector<int> parameterSpace);
+		void getBezierCurveOnRow(std::vector<Point> controlPoints, int steps, std::vector<int> parameterSpace);
 }; 
