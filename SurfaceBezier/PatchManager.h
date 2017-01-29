@@ -9,6 +9,7 @@ class PatchManager
 		float nbRows;
 		float nbPointsPerRow;
 		std::vector< std::vector<Point> > allControlPoints;
+		std::vector< std::vector<Point> > allCasteljauPoints;
 		std::vector<Point> controlPoints;
 		std::vector<Point> casteljauPoints;
 		std::vector<Color> colors;
@@ -20,6 +21,8 @@ class PatchManager
 		PatchManager(float inbRows, float inbPointsPerRow);
 		void generateControlPoints();
 		void majControlPoints();
+		void majCasteljauPoints();
+
 		void randomizeControlPoints();
 
 		float getRandomNumber(int a, int b);

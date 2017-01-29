@@ -7,6 +7,7 @@ PatchManager::PatchManager()
 	nbRows = 3;
 	nbPointsPerRow = 3;
 	allControlPoints = std::vector<std::vector<Point>>(3);
+	allCasteljauPoints = std::vector < std::vector<Point>>(3);
 }
 
 PatchManager::PatchManager(float inbRows, float inbPointsPerRow)
@@ -14,6 +15,7 @@ PatchManager::PatchManager(float inbRows, float inbPointsPerRow)
 	nbRows = inbRows;
 	nbPointsPerRow = inbPointsPerRow;
 	allControlPoints = std::vector<std::vector<Point>>(nbRows);
+	allCasteljauPoints = std::vector < std::vector<Point>>(nbRows);
 }
 
 void PatchManager::generateControlPoints()
@@ -53,6 +55,18 @@ void PatchManager::majControlPoints()
 	}
 }
 
+void PatchManager::majCasteljauPoints()
+{
+	casteljauPoints.clear();
+	for (int i = 0; i < allCasteljauPoints.size(); i++)
+	{
+		for (int j = 0; j < allCasteljauPoints[i].size(); j++)
+		{
+			casteljauPoints.push_back(allCasteljauPoints[i][j]);
+		}
+	}
+}
+
 void PatchManager::randomizeControlPoints()
 {
 	for (int i = 0; i < allControlPoints.size(); i++)
@@ -77,16 +91,25 @@ void PatchManager::getBezierCurveOnRow(std::vector<Point> controlPoints, int ste
 	parameterSpace = std::vector<int>();
 	parameterSpace.push_back(0);
 	parameterSpace.push_back(10);
-	for (int i = 0; i < nbPointsPerRow; i++)
+	
+	for (int indexRow = 0; indexRow < nbRows; indexRow++)
 	{
-		gPoints.push_back(glm::vec3(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z));
-	}
+		int max = nbPointsPerRow * indexRow + nbPointsPerRow;
 
-	std::vector<glm::vec3> points = bezierManager.CasteljauBezier(gPoints, 20, parameterSpace);
-	for (int i = 0; i < points.size(); i++)
-	{
-		casteljauPoints.push_back(Point(points[i].x, points[i].y, points[i].z));
+		gPoints.clear();
+		for (int i = nbPointsPerRow * indexRow; i < max; i++)
+		{
+			gPoints.push_back(glm::vec3(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z));
+		}
+
+		std::vector<glm::vec3> points = bezierManager.CasteljauBezier(gPoints, 20, parameterSpace);
+		for (int i = 0; i < points.size(); i++)
+		{
+			allCasteljauPoints[indexRow].push_back(Point(points[i].x, points[i].y, controlPoints[nbPointsPerRow * indexRow].z));
+		}
 	}
+	
+	majCasteljauPoints();
 }
 
 std::vector<Point>& PatchManager::getControlPoints()
