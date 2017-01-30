@@ -17,6 +17,7 @@
 #include <glm\gtc\matrix_transform.hpp>
 #include <glm\gtx\string_cast.hpp>
 #include <glm\gtx\transform.hpp>
+#include <glm\gtc\type_ptr.hpp>
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
@@ -35,6 +36,7 @@ int height = 800;
 Quaternion rotation;
 GLint basicProgram, gridProgram, patchProgram;
 
+GLuint lightsBuffer;
 GLuint vaoPoint, vaoCasteljauPoints, vaoPatch;
 GLuint vertexBufferPoints, vertexBufferColors, vertexBufferCasteljauPoints, vertexBufferPatch;
 
@@ -91,6 +93,9 @@ struct
 		int     projview_matrix;
 	} grid;
 } uniforms;
+
+glm::vec2     posLights[2];
+glm::vec3     colorLights[2];
 
 int main(int argc, char** argv)
 {
@@ -162,6 +167,7 @@ void display(void)
 	glm::mat4 proj_view = proj * view;
 	glm::mat4 model_mat;
 
+
 	glUseProgram(basicProgram);
 	glUniformMatrix4fv(uniforms.basic.projview_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
 	glUseProgram(gridProgram);
@@ -169,6 +175,7 @@ void display(void)
 
 	std::vector<Point> controlPoints = patchMng.getControlPoints();
 	glUseProgram(patchProgram);
+
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferPatch);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * controlPoints.size(), controlPoints.data(), GL_DYNAMIC_DRAW);
 
@@ -217,6 +224,16 @@ void initialize()
 {
 	rotation = Quaternion();
 	patchMng = PatchManager(4.0, 4.0);
+
+	posLights[0] = glm::vec2(0.0f, 1.0f);
+	posLights[1] = glm::vec2(1.0f, 0.0f);
+
+	colorLights[0] = glm::vec3(0.0f, 1.0f, 0.0f);
+	colorLights[1] = glm::vec3(1.0f, 0.0f, 0.0f);
+
+	glUseProgram(patchProgram);
+	glUniform2fv(glGetUniformLocation(patchProgram, "posLights"), 2, glm::value_ptr(posLights[0]));
+	glUniform3fv(glGetUniformLocation(patchProgram, "colorLights"), 2, glm::value_ptr(colorLights[0]));
 
 	/*VAO Points*/
 	glGenVertexArrays(1, &vaoPoint);
@@ -270,6 +287,7 @@ void initialize()
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(0);
 
+	
 }
 
 void loadShaders()
