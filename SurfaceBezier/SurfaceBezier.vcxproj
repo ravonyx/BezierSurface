@@ -42,11 +42,15 @@
     <ClInclude Include="Vertex.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="basicShader.frag" />
-    <None Include="basicShader.vert" />
-    <None Include="gridShader.frag" />
-    <None Include="gridShader.geom" />
-    <None Include="gridShader.vert" />
+    <None Include="shaders\basic.frag" />
+    <None Include="shaders\basic.vert" />
+    <None Include="shaders\grid.frag" />
+    <None Include="shaders\grid.geom" />
+    <None Include="shaders\grid.vert" />
+    <None Include="shaders\patch.fs" />
+    <None Include="shaders\patch.tcs" />
+    <None Include="shaders\patch.tes" />
+    <None Include="shaders\patch.vs" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{8B277998-C77D-4895-A6E5-31AA5450173C}</ProjectGuid>

@@ -73,19 +73,31 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="basicShader.frag">
+    <None Include="shaders\basic.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="basicShader.vert">
+    <None Include="shaders\basic.vert">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="gridShader.frag">
+    <None Include="shaders\grid.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="gridShader.geom">
+    <None Include="shaders\grid.geom">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="gridShader.vert">
+    <None Include="shaders\grid.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\patch.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\patch.tcs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\patch.tes">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\patch.vs">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

@@ -32,20 +32,14 @@ int current_index = 0;
 int width = 1500;
 int height = 800;
 
-float first_mousex, first_mousey;
-float last_mousex, last_mousey;
-float last_movex, last_movey;
-
-int _selectMovePointI = -1, _selectMovePointJ = -1;
-
 Quaternion rotation;
 
-glm::mat4 proj;
-glm::mat4 view;
 
-EsgiShader basicShader, gridShader;
+
+
+GLint basicProgram, gridProgram, tessProgram;
+
 GLuint vaoPoint, vaoCasteljauPoints, vertexBufferPoints, vertexBufferColors, vertexBufferCasteljauPoints;
-GLuint mvp_location, position_location, color_location;
 
 /*var shaders*/
 int programBasicID;
@@ -55,9 +49,7 @@ Camera *cam;
 bool mode_ui, decrease;
 int index;
 std::string indexStr;
-
 std::string infos;
-std::vector <Point>lineVector;
 
 PatchManager patchMng;
 
@@ -78,6 +70,24 @@ void reshape(int w, int h);
 
 template<typename T>
 void majBuffer(int vertexBuffer, std::vector<T> &vecteur);
+
+void initialize();
+void loadShaders();
+
+struct
+{
+	struct
+	{
+		int     model_matrix;
+		int     projview_matrix;
+		int     position;
+		int     color;
+	} basic;
+	struct
+	{
+		int     projview_matrix;
+	} grid;
+} uniforms;
 
 int main(int argc, char** argv)
 {
@@ -100,90 +110,21 @@ int main(int argc, char** argv)
 	//Callback functions
 	glutKeyboardFunc(keyboardDown);
 	glutKeyboardUpFunc(keyboardUp);
-	//glutMouseWheelFunc(mouseZoom);
-
 	glutDisplayFunc(display);
 	glutReshapeFunc(reshape);
 	glutTimerFunc(10, computePos, 0);
 
-	/*Load shader and get attributes*/
-	printf("Load Fragment basic shader\n");
-	basicShader.LoadFragmentShader("basicShader.frag");
-	printf("Load Vertex basic shader\n");
-	basicShader.LoadVertexShader("basicShader.vert");
-	basicShader.Create();
-	printf("Load Fragment grid shader\n");
-	gridShader.LoadFragmentShader("gridShader.frag");
-	printf("Load Vertex grid shader\n");
-	gridShader.LoadVertexShader("gridShader.vert");
-	printf("Load Geom grid shader\n");
-	gridShader.LoadGeometryShader("gridShader.geom");
-	gridShader.Create();
-
-	position_location = glGetAttribLocation(basicShader.GetProgram(), "a_position");
-	color_location = glGetAttribLocation(basicShader.GetProgram(), "a_color");
-
-	GLuint uniVP = glGetUniformLocation(gridShader.GetProgram(), "VP");
-	gridShader.SetVP(uniVP);
-	uniVP = glGetUniformLocation(basicShader.GetProgram(), "VP");
-	basicShader.SetVP(uniVP);
-	GLuint uniM = glGetUniformLocation(basicShader.GetProgram(), "M");
-	basicShader.SetM(uniM);
-
-	rotation = Quaternion();
-	patchMng = PatchManager(5.0, 3.0);
-
-	/*VAO Points*/
-	glGenVertexArrays(1, &vaoPoint);
-	glBindVertexArray(vaoPoint);
-	
-	patchMng.generateControlPoints();
-	std::vector<Point> controlPoints = patchMng.getControlPoints();
-	std::vector<Color> colors = patchMng.getColors();
-
-	glGenBuffers(1, &vertexBufferPoints);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferPoints);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * controlPoints.size(), controlPoints.data(), GL_STATIC_DRAW);
-	glEnableVertexAttribArray(position_location);
-	glVertexAttribPointer(position_location, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-
-	glGenBuffers(1, &vertexBufferColors);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferColors);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Color) * colors.size(), colors.data(), GL_STATIC_DRAW);
-	glEnableVertexAttribArray(color_location);
-	glVertexAttribPointer(color_location, 4, GL_FLOAT, GL_FALSE, 0, (void*)0);
-
-	glBindVertexArray(0);
-
-	colors[0].r = 1.0f; colors[0].g = 1.0f; colors[0].b = 1.0f;
-	majBuffer(vertexBufferColors, colors);
-	index = 0;
-	indexStr = std::to_string(index);
-
-	/*VAO Line*/
-	glGenVertexArrays(1, &vaoCasteljauPoints);
-	glBindVertexArray(vaoCasteljauPoints);
-
-
-	std::vector<Point> casteljauPoints = patchMng.getCasteljauPoints();
-	glGenBuffers(1, &vertexBufferCasteljauPoints);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferCasteljauPoints);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * casteljauPoints.size(), casteljauPoints.data(), GL_STATIC_DRAW);
-	glEnableVertexAttribArray(position_location);
-	glVertexAttribPointer(position_location, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-
-	glBindVertexArray(0);
-
-	/** GESTION SOURIS **/
 	glutMouseFunc(mouseButton);
 	glutMotionFunc(mouseMove);
 	glutPassiveMotionFunc(NULL);
 	glutSpecialFunc(keyboardSpecDown);
 	glutSpecialUpFunc(keyboardSpecUp);
 
+	loadShaders();
+	initialize();
+
 	// Create a tweak bar
 	bar = TwNewBar("BezierSurface");
-
 	TwDefine(" BezierSurface size='200 300' color='86 101 115' valueswidth=fit ");
 	float refresh = 0.1f;
 	TwSetParam(bar, NULL, "refresh", TW_PARAM_FLOAT, 1, &refresh);
@@ -191,16 +132,12 @@ int main(int argc, char** argv)
 	//TwAddVarRW(bar, "LightDir", TW_TYPE_DIR3F, &light_direction, " label='Light direction' opened=true help='Change the light direction.' ");
 	TwAddVarRO(bar, "Index", TW_TYPE_STDSTRING, &indexStr, " label='Index' help='Change index of the point' ");
 
-
 	TwAddSeparator(bar, "settings object", "");
 	TwAddVarRW(bar, "ObjRotation", TW_TYPE_QUAT4F, &rotation, " label='Object rotation' opened=true help='Change the object orientation.' ");
 	TwAddButton(bar, "Randomize", &randomizeCallbackTw, nullptr, "");
 
 	TwAddSeparator(bar, "program", "");
 	TwAddButton(bar, "Exit", &exitCallbackTw, nullptr, "");
-
-	_selectMovePointI = -1;
-	_selectMovePointJ = -1;
 
 	glutMainLoop();
 	return 1;
@@ -215,17 +152,17 @@ void display(void)
 
 	//Set view and zoom
 	glm::vec3 camPos = glm::vec3(cam->posx, cam->posy, cam->posz);
-	proj = glm::perspective(45.0f, (float)width / height, 0.01f, 2000.0f);
-	view = cam->GetOrientation() * glm::translate(camPos);
+	glm::mat4 proj = glm::perspective(45.0f, (float)width / height, 0.01f, 1000.0f);
+	glm::mat4 view = cam->GetOrientation() * glm::translate(camPos);
 	glm::mat4 proj_view = proj * view;
 	glViewport(0, 0, width, height);
 
-	glUseProgram(basicShader.GetProgram());
-	glUniformMatrix4fv(basicShader.GetVP(), 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
-	glUseProgram(gridShader.GetProgram());
-	glUniformMatrix4fv(gridShader.GetVP(), 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
+	glUseProgram(basicProgram);
+	glUniformMatrix4fv(uniforms.basic.projview_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
+	glUseProgram(gridProgram);
+	glUniformMatrix4fv(uniforms.grid.projview_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
 
-	glUseProgram(basicShader.GetProgram());
+	glUseProgram(basicProgram);
 	Quaternion rotationObj = Quaternion();
 
 	glm::mat4 model_mat;
@@ -233,17 +170,17 @@ void display(void)
 	glPointSize(5);
 	glBindVertexArray(vaoPoint);
 		
-	glUniformMatrix4fv(basicShader.GetM(), 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
+	glUniformMatrix4fv(uniforms.basic.model_matrix, 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
 	glDrawArrays(GL_POINTS, 0, patchMng.getControlPoints().size());
 
 	glBindVertexArray(0);
 
 	glBindVertexArray(vaoCasteljauPoints);
-	glUniformMatrix4fv(basicShader.GetM(), 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
+	glUniformMatrix4fv(uniforms.basic.model_matrix, 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
 	glDrawArrays(GL_POINTS, 0, patchMng.getCasteljauPoints().size());
 	glBindVertexArray(0);
 
-	glUseProgram(gridShader.GetProgram());
+	glUseProgram(gridProgram);
 	glDrawArrays(GL_POINTS, 0, 1);
 
 	TwDraw();
@@ -256,15 +193,95 @@ void reshape(int w, int h)
 	width = w;
 	height = h;
 	glViewport(0, 0, width, height);
-
-	proj = glm::perspective(45.0f, (float)width / height, 0.01f, 2000.0f);
 }
 
-/** GESTION DEPLACEMENT CAMERA **/
 void computePos(int unused)
 {
 	cam->updatePos();
 	glutTimerFunc(10, computePos, 0);
+}
+
+void initialize()
+{
+	rotation = Quaternion();
+	patchMng = PatchManager(5.0, 3.0);
+
+	/*VAO Points*/
+	glGenVertexArrays(1, &vaoPoint);
+	glBindVertexArray(vaoPoint);
+
+	patchMng.generateControlPoints();
+	std::vector<Point> controlPoints = patchMng.getControlPoints();
+	std::vector<Color> colors = patchMng.getColors();
+
+	glGenBuffers(1, &vertexBufferPoints);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferPoints);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * controlPoints.size(), controlPoints.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(uniforms.basic.position);
+	glVertexAttribPointer(uniforms.basic.position, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+
+	glGenBuffers(1, &vertexBufferColors);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferColors);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Color) * colors.size(), colors.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(uniforms.basic.color);
+	glVertexAttribPointer(uniforms.basic.color, 4, GL_FLOAT, GL_FALSE, 0, (void*)0);
+
+	glBindVertexArray(0);
+
+	colors[0].r = 1.0f; colors[0].g = 1.0f; colors[0].b = 1.0f;
+	majBuffer(vertexBufferColors, colors);
+	index = 0;
+	indexStr = std::to_string(index);
+
+	/*VAO Line*/
+	glGenVertexArrays(1, &vaoCasteljauPoints);
+	glBindVertexArray(vaoCasteljauPoints);
+
+	std::vector<Point> casteljauPoints = patchMng.getCasteljauPoints();
+	glGenBuffers(1, &vertexBufferCasteljauPoints);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferCasteljauPoints);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * casteljauPoints.size(), casteljauPoints.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(uniforms.basic.position);
+	glVertexAttribPointer(uniforms.basic.position, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+
+	glBindVertexArray(0);
+}
+
+void loadShaders()
+{
+	EsgiShader basicShader, gridShader, tessShader;
+
+	printf("Load Fragment basic shader\n");
+	basicShader.LoadFragmentShader("shaders/basic.frag");
+	printf("Load Vertex basic shader\n");
+	basicShader.LoadVertexShader("shaders/basic.vert");
+	basicShader.Create();
+	printf("Load Fragment grid shader\n");
+	gridShader.LoadFragmentShader("shaders/grid.frag");
+	printf("Load Vertex grid shader\n");
+	gridShader.LoadVertexShader("shaders/grid.vert");
+	printf("Load Geom grid shader\n");
+	gridShader.LoadGeometryShader("shaders/grid.geom");
+	gridShader.Create();
+
+	basicProgram = basicShader.GetProgram();
+	gridProgram = gridShader.GetProgram();
+	tessProgram = tessShader.GetProgram();
+
+	uniforms.grid.projview_matrix = glGetUniformLocation(gridProgram, "VP");
+
+	uniforms.basic.projview_matrix = glGetUniformLocation(basicProgram, "VP");
+	uniforms.basic.model_matrix = glGetUniformLocation(basicProgram, "M");
+	uniforms.basic.position = glGetAttribLocation(basicProgram, "a_position");
+	uniforms.basic.color = glGetAttribLocation(basicProgram, "a_color");
+}
+
+
+template<typename T>
+void majBuffer(int vertexBuffer, std::vector<T> &vecteur)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(T) * vecteur.size(), vecteur.data(), GL_STATIC_DRAW);
 }
 
 #pragma region event_callback
@@ -377,7 +394,6 @@ void keyboardSpecDown(int key, int x, int y)
 	}
 }
 
-
 void keyboardSpecUp(int key, int x, int y)
 {
 	if (key == 112)
@@ -386,8 +402,6 @@ void keyboardSpecUp(int key, int x, int y)
 		decrease = false;
 	}
 }
-
-
 
 void keyboardUp(unsigned char key, int xx, int yy)
 {
@@ -405,29 +419,6 @@ void keyboardUp(unsigned char key, int xx, int yy)
 			break;
 		}
 	}
-}
-
-float pointToLineDistance(glm::vec3 point, glm::vec3 start, glm::vec3 end)
-{
-	glm::vec3 dir = glm::normalize(end - start);
-	glm::vec3 startToPoint = point - start;
-
-	float dotProduct = dot(glm::normalize(startToPoint), dir);
-	float normcalc = norm(dir);
-	std::cout << normcalc << std::endl;
-
-	float projection = dotProduct / 5;
-	std::cout << projection << std::endl;
-	glm::vec3 nearPoint;
-	if (projection < 0)
-		nearPoint = start;
-	else if (projection > 1)
-		nearPoint = end;
-	else
-		nearPoint = end * projection + start * (1 - projection);// VectorAdd(VectorMultiply(vEnd, Projection), VectorMultiply(vStart, 1 - Projection));
-	
-	float distance = norm(nearPoint - point); // VectorLength(VectorSubtract(NearPoint, vPoint));
-	return distance;
 }
 
 void mouseButton(int button, int state, int x, int y)
@@ -452,6 +443,14 @@ void mouseButton(int button, int state, int x, int y)
 	glutPostRedisplay();
 }
 
+void mouseMove(int x, int y)
+{
+	if (!mode_ui)
+		cam->orienterCam(x, y);
+
+	glutPostRedisplay();
+}
+
 void __stdcall exitCallbackTw(void* clientData)
 {
 	TwTerminate();
@@ -464,19 +463,5 @@ void __stdcall randomizeCallbackTw(void* clientData)
 	majBuffer(vertexBufferPoints, patchMng.getControlPoints());
 	glutPostRedisplay();
 }
+#pragma endregion
 
-
-template<typename T>
-void majBuffer(int vertexBuffer, std::vector<T> &vecteur)
-{
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(T) * vecteur.size(), vecteur.data(), GL_STATIC_DRAW);
-}
-
-void mouseMove(int x, int y)
-{
-	if (!mode_ui)
-		cam->orienterCam(x, y);
-
-	glutPostRedisplay();
-}
