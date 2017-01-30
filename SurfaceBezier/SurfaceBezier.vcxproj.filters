@@ -25,10 +25,10 @@
     <ClCompile Include="PatchManager.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\EsgiShader.cpp">
+    <ClCompile Include="Bezier.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="Bezier.cpp">
+    <ClCompile Include="..\libs\common\EsgiShader.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>
@@ -54,10 +54,10 @@
     <ClInclude Include="PatchManager.h">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\EsgiShader.h">
+    <ClInclude Include="Bezier.h">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="Bezier.h">
+    <ClInclude Include="..\libs\common\EsgiShader.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

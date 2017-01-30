@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\common\EsgiShader.cpp" />
+    <ClCompile Include="..\libs\common\EsgiShader.cpp" />
     <ClCompile Include="Bezier.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="main.cpp" />
@@ -31,7 +31,7 @@
     <ClCompile Include="Vertex.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\common\EsgiShader.h" />
+    <ClInclude Include="..\libs\common\EsgiShader.h" />
     <ClInclude Include="Bezier.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Math.h" />

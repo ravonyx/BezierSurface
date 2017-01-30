@@ -19,6 +19,7 @@ class EsgiShader
 public:
 	EsgiShader() : m_ProgramObject(0), m_VertexShader(0)
 				, m_FragmentShader(0), m_GeometryShader(0)
+				, m_TessControlShader(0), m_TessEvaluationShader(0)
 	{
 	}
 	~EsgiShader()
@@ -28,6 +29,8 @@ public:
 	bool LoadVertexShader(const char *source);
 	bool LoadFragmentShader(const char *source);
 	bool LoadGeometryShader(const char *source);
+	bool LoadTessControlShader(const char *source);
+	bool LoadTessEvaluationShader(const char *source);
 
 	bool Create();
 	void Destroy();
@@ -37,14 +40,7 @@ public:
 
 	inline GLuint GetProgram() const	{ return m_ProgramObject; }
 
-	void SetVP(GLuint pVP);
-	void SetM(GLuint pM);
-
-	GLuint GetVP();
-	GLuint GetM();
 private:
-	GLuint VP;
-	GLuint M;
 
 	// handle du program object
 	GLuint m_ProgramObject;
@@ -52,6 +48,8 @@ private:
 	GLuint m_VertexShader;
 	GLuint m_FragmentShader;
 	GLuint m_GeometryShader;
+	GLuint m_TessControlShader;
+	GLuint m_TessEvaluationShader;
 };
 
 #endif // ESGI_SHADER

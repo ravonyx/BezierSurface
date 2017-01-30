@@ -42,9 +42,7 @@ static char* FileToString(const char *sourceFile)
      return text;
 }
 
-///
 // Cree un shader object, charge le code source du shader et le compile
-//
 static GLuint LoadShader(GLenum type, const char *sourceFile)
 {
 	// Preload le fichier de shader
@@ -103,7 +101,6 @@ bool EsgiShader::LoadVertexShader(const char *sourceFile)
 	return (m_VertexShader > 0);
 }
 
-
 bool EsgiShader::LoadFragmentShader(const char *sourceFile)
 {
 	m_FragmentShader = LoadShader(GL_FRAGMENT_SHADER, sourceFile);
@@ -116,9 +113,19 @@ bool EsgiShader::LoadGeometryShader(const char *sourceFile)
 	return (m_GeometryShader != 0);
 }
 
-//
+bool EsgiShader::LoadTessControlShader(const char *sourceFile)
+{
+	m_TessControlShader = LoadShader(GL_TESS_CONTROL_SHADER, sourceFile);
+	return (m_TessControlShader != 0);
+}
+
+bool EsgiShader::LoadTessEvaluationShader(const char *sourceFile)
+{
+	m_TessEvaluationShader = LoadShader(GL_TESS_EVALUATION_SHADER, sourceFile);
+	return (m_TessEvaluationShader != 0);
+}
+
 // Initialise les shader & program object
-//
 bool EsgiShader::Create()
 {
 	// Cree le program object
@@ -136,6 +143,12 @@ bool EsgiShader::Create()
 	}
 	if (m_GeometryShader >= 0) {
 		glAttachShader(m_ProgramObject, m_GeometryShader);
+	}
+	if (m_TessControlShader >= 0) {
+		glAttachShader(m_ProgramObject, m_TessControlShader);
+	}
+	if (m_TessEvaluationShader >= 0) {
+		glAttachShader(m_ProgramObject, m_TessEvaluationShader);
 	}
 
 	// Liage des shaders dans le programme
@@ -181,9 +194,7 @@ bool EsgiShader::Create()
 	return true;
 }
 
-//
 // Libere la memoire occupee par le program et le shader object
-//
 void EsgiShader::Destroy()
 {
 	if (m_VertexShader) {
@@ -198,38 +209,27 @@ void EsgiShader::Destroy()
 		glDetachShader(m_ProgramObject, m_GeometryShader);
 		glDeleteShader(m_GeometryShader);
 	}
+	if (m_TessControlShader) {
+		glDetachShader(m_ProgramObject, m_TessControlShader);
+		glDeleteShader(m_TessControlShader);
+	}
+	if (m_TessEvaluationShader) {
+		glDetachShader(m_ProgramObject, m_TessEvaluationShader);
+		glDeleteShader(m_TessEvaluationShader);
+	}
 
 	if (m_ProgramObject) {
 		glDeleteProgram(m_ProgramObject);
 	}
 }
 
-//
-//
-//
-GLuint EsgiShader::Bind() {
+GLuint EsgiShader::Bind() 
+{
      glUseProgram(m_ProgramObject);
 	 return m_ProgramObject;
 }
 
-void EsgiShader::Unbind() {
+void EsgiShader::Unbind() 
+{
      glUseProgram(0);
-}
-
-void EsgiShader::SetVP(GLuint pVP)
-{
-	VP = pVP;
-}
-void EsgiShader::SetM(GLuint pM)
-{
-	M = pM;
-}
-
-GLuint EsgiShader::GetVP()
-{
-	return VP;
-}
-GLuint EsgiShader::GetM()
-{
-	return M;
 }

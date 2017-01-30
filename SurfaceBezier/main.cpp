@@ -33,11 +33,7 @@ int width = 1500;
 int height = 800;
 
 Quaternion rotation;
-
-
-
-
-GLint basicProgram, gridProgram, tessProgram;
+GLint basicProgram, gridProgram, patchProgram;
 
 GLuint vaoPoint, vaoCasteljauPoints, vertexBufferPoints, vertexBufferColors, vertexBufferCasteljauPoints;
 
@@ -249,33 +245,43 @@ void initialize()
 
 void loadShaders()
 {
-	EsgiShader basicShader, gridShader, tessShader;
+	EsgiShader basicShader, gridShader, patchShader;
 
-	printf("Load Fragment basic shader\n");
+	printf("Load basic fs\n");
 	basicShader.LoadFragmentShader("shaders/basic.frag");
-	printf("Load Vertex basic shader\n");
+	printf("Load basic vs\n");
 	basicShader.LoadVertexShader("shaders/basic.vert");
 	basicShader.Create();
-	printf("Load Fragment grid shader\n");
+
+	printf("Load grid fs\n");
 	gridShader.LoadFragmentShader("shaders/grid.frag");
-	printf("Load Vertex grid shader\n");
+	printf("Load grid vs\n");
 	gridShader.LoadVertexShader("shaders/grid.vert");
-	printf("Load Geom grid shader\n");
+	printf("Load grid geom\n");
 	gridShader.LoadGeometryShader("shaders/grid.geom");
 	gridShader.Create();
 
+	printf("Load patch fs\n");
+	patchShader.LoadFragmentShader("shaders/patch.fs");
+	printf("Load patch tcs\n");
+	patchShader.LoadTessControlShader("shaders/patch.tcs");
+	printf("Load patch tes\n");
+	patchShader.LoadTessEvaluationShader("shaders/patch.tes");
+	printf("Load patch vs\n");
+	patchShader.LoadVertexShader("shaders/patch.vs");
+	patchShader.Create();
+
 	basicProgram = basicShader.GetProgram();
 	gridProgram = gridShader.GetProgram();
-	tessProgram = tessShader.GetProgram();
+	patchProgram = patchShader.GetProgram();
 
-	uniforms.grid.projview_matrix = glGetUniformLocation(gridProgram, "VP");
+	uniforms.grid.projview_matrix = glGetUniformLocation(gridProgram, "projview_matrix");
 
-	uniforms.basic.projview_matrix = glGetUniformLocation(basicProgram, "VP");
-	uniforms.basic.model_matrix = glGetUniformLocation(basicProgram, "M");
+	uniforms.basic.projview_matrix = glGetUniformLocation(basicProgram, "projview_matrix");
+	uniforms.basic.model_matrix = glGetUniformLocation(basicProgram, "model_matrix");
 	uniforms.basic.position = glGetAttribLocation(basicProgram, "a_position");
 	uniforms.basic.color = glGetAttribLocation(basicProgram, "a_color");
 }
-
 
 template<typename T>
 void majBuffer(int vertexBuffer, std::vector<T> &vecteur)
