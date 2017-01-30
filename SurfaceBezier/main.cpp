@@ -35,7 +35,8 @@ int height = 800;
 Quaternion rotation;
 GLint basicProgram, gridProgram, patchProgram;
 
-GLuint vaoPoint, vaoCasteljauPoints, vertexBufferPoints, vertexBufferColors, vertexBufferCasteljauPoints;
+GLuint vaoPoint, vaoCasteljauPoints, vaoPatch;
+GLuint vertexBufferPoints, vertexBufferColors, vertexBufferCasteljauPoints, vertexBufferPatch;
 
 /*var shaders*/
 int programBasicID;
@@ -79,6 +80,12 @@ struct
 		int     position;
 		int     color;
 	} basic;
+	struct
+	{
+		int     model_matrix;
+		int     proj_matrix;
+		int     projview_matrix;
+	} patch;
 	struct
 	{
 		int     projview_matrix;
@@ -145,30 +152,39 @@ void display(void)
 	glClearColor(0.5, 0.5, 0.5, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
+	glViewport(0, 0, width, height);
+	glPointSize(5);
 
 	//Set view and zoom
 	glm::vec3 camPos = glm::vec3(cam->posx, cam->posy, cam->posz);
 	glm::mat4 proj = glm::perspective(45.0f, (float)width / height, 0.01f, 1000.0f);
 	glm::mat4 view = cam->GetOrientation() * glm::translate(camPos);
 	glm::mat4 proj_view = proj * view;
-	glViewport(0, 0, width, height);
+	glm::mat4 model_mat;
 
 	glUseProgram(basicProgram);
 	glUniformMatrix4fv(uniforms.basic.projview_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
 	glUseProgram(gridProgram);
 	glUniformMatrix4fv(uniforms.grid.projview_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
 
+	std::vector<Point> controlPoints = patchMng.getControlPoints();
+	glUseProgram(patchProgram);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferPatch);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * controlPoints.size(), controlPoints.data(), GL_DYNAMIC_DRAW);
+
+	glBindVertexArray(vaoPatch);
+	model_mat = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+	glUniformMatrix4fv(uniforms.patch.model_matrix, 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
+	glUniformMatrix4fv(uniforms.patch.proj_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glPatchParameteri(GL_PATCH_VERTICES, controlPoints.size());
+	glDrawArrays(GL_PATCHES, 0, controlPoints.size());
+	glBindVertexArray(0);
+
 	glUseProgram(basicProgram);
-	Quaternion rotationObj = Quaternion();
-
-	glm::mat4 model_mat;
-
-	glPointSize(5);
 	glBindVertexArray(vaoPoint);
-		
 	glUniformMatrix4fv(uniforms.basic.model_matrix, 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
 	glDrawArrays(GL_POINTS, 0, patchMng.getControlPoints().size());
-
 	glBindVertexArray(0);
 
 	glBindVertexArray(vaoCasteljauPoints);
@@ -200,7 +216,7 @@ void computePos(int unused)
 void initialize()
 {
 	rotation = Quaternion();
-	patchMng = PatchManager(5.0, 3.0);
+	patchMng = PatchManager(4.0, 4.0);
 
 	/*VAO Points*/
 	glGenVertexArrays(1, &vaoPoint);
@@ -241,6 +257,19 @@ void initialize()
 	glVertexAttribPointer(uniforms.basic.position, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
 	glBindVertexArray(0);
+
+	/*VAO Patch*/
+	glGenVertexArrays(1, &vaoPatch);
+	glBindVertexArray(vaoPatch);
+
+	glGenBuffers(1, &vertexBufferPatch);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferPatch);
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * controlPoints.size(), controlPoints.data(), GL_DYNAMIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(0);
+	glBindVertexArray(0);
+
 }
 
 void loadShaders()
@@ -281,6 +310,10 @@ void loadShaders()
 	uniforms.basic.model_matrix = glGetUniformLocation(basicProgram, "model_matrix");
 	uniforms.basic.position = glGetAttribLocation(basicProgram, "a_position");
 	uniforms.basic.color = glGetAttribLocation(basicProgram, "a_color");
+
+	uniforms.patch.model_matrix = glGetUniformLocation(patchProgram, "mv_matrix");
+	uniforms.patch.proj_matrix = glGetUniformLocation(patchProgram, "proj_matrix");
+	uniforms.patch.projview_matrix = glGetUniformLocation(patchProgram, "mvp");
 }
 
 template<typename T>
@@ -371,7 +404,7 @@ void keyboardDown(unsigned char key, int x, int y)
 
 	if (!mode_ui)
 	{
-		switch (key)
+ 		switch (key)
 		{
 			case 'z':
 				cam->deltaForward = -1;
