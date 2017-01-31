@@ -34,15 +34,12 @@ int width = 1500;
 int height = 800;
 
 Quaternion rotation;
-GLint basicProgram, gridProgram, patchProgram;
+int display_normal = 0, display_wireframe = 0;
 
+GLint basicProgram, gridProgram, patchProgram;
 GLuint lightsBuffer;
 GLuint vaoPoint, vaoCasteljauPoints, vaoPatch;
 GLuint vertexBufferPoints, vertexBufferColors, vertexBufferCasteljauPoints, vertexBufferPatch;
-
-/*var shaders*/
-int programBasicID;
-GLuint attr_color;
 
 Camera *cam;
 bool mode_ui, decrease;
@@ -55,6 +52,11 @@ PatchManager patchMng;
 #pragma region header_function
 static  void __stdcall exitCallbackTw(void* clientData);
 static  void __stdcall randomizeCallbackTw(void* clientData);
+void TW_CALL SetWireframeCB(const void *value, void *clientData);
+void TW_CALL GetWireframeCB(void *value, void *clientData);
+void TW_CALL SetNormalCB(const void *value, void *clientData);
+void TW_CALL GetNormalCB(void *value, void *clientData);
+
 void display(void);
 void computePos(int unused);
 
@@ -85,8 +87,9 @@ struct
 	struct
 	{
 		int     model_matrix;
-		int     proj_matrix;
 		int     projview_matrix;
+		int     view_matrix;
+		int     display_normal;
 	} patch;
 	struct
 	{
@@ -94,7 +97,7 @@ struct
 	} grid;
 } uniforms;
 
-glm::vec2     posLights[2];
+glm::vec3     posLights[2];
 glm::vec3     colorLights[2];
 
 int main(int argc, char** argv)
@@ -140,9 +143,12 @@ int main(int argc, char** argv)
 	//TwAddVarRW(bar, "LightDir", TW_TYPE_DIR3F, &light_direction, " label='Light direction' opened=true help='Change the light direction.' ");
 	TwAddVarRO(bar, "Index", TW_TYPE_STDSTRING, &indexStr, " label='Index' help='Change index of the point' ");
 
+	TwAddVarCB(bar, "Wireframe", TW_TYPE_BOOL32, SetWireframeCB, GetWireframeCB, NULL, " label='Wireframe' key=e help='Display in wireframe' ");
+	TwAddVarCB(bar, "Normal", TW_TYPE_BOOL32, SetNormalCB, GetNormalCB, NULL, " label='Normal' key=e help='Display normals' ");
+
 	TwAddSeparator(bar, "settings object", "");
 	TwAddVarRW(bar, "ObjRotation", TW_TYPE_QUAT4F, &rotation, " label='Object rotation' opened=true help='Change the object orientation.' ");
-	TwAddButton(bar, "Randomize", &randomizeCallbackTw, nullptr, "");
+	TwAddButton(bar, "Randomize points", &randomizeCallbackTw, nullptr, "");
 
 	TwAddSeparator(bar, "program", "");
 	TwAddButton(bar, "Exit", &exitCallbackTw, nullptr, "");
@@ -160,7 +166,7 @@ void display(void)
 	glViewport(0, 0, width, height);
 	glPointSize(5);
 
-	//Set view and zoom
+	//Parameters
 	glm::vec3 camPos = glm::vec3(cam->posx, cam->posy, cam->posz);
 	glm::mat4 proj = glm::perspective(45.0f, (float)width / height, 0.01f, 1000.0f);
 	glm::mat4 view = cam->GetOrientation() * glm::translate(camPos);
@@ -168,38 +174,48 @@ void display(void)
 	glm::mat4 model_mat;
 
 
-	glUseProgram(basicProgram);
-	glUniformMatrix4fv(uniforms.basic.projview_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
-	glUseProgram(gridProgram);
-	glUniformMatrix4fv(uniforms.grid.projview_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
-
 	std::vector<Point> controlPoints = patchMng.getControlPoints();
+
+	if (display_wireframe)
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	else
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+	//Draw patch
 	glUseProgram(patchProgram);
+	model_mat = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+	glUniformMatrix4fv(uniforms.patch.model_matrix, 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
+	glUniformMatrix4fv(uniforms.patch.projview_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
+	glUniformMatrix4fv(uniforms.patch.view_matrix, 1, GL_FALSE, (GLfloat*)&view[0][0]);
+	if(display_normal)
+		glUniform1i(uniforms.patch.display_normal, 1);
+	else
+		glUniform1i(uniforms.patch.display_normal, 0);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferPatch);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * controlPoints.size(), controlPoints.data(), GL_DYNAMIC_DRAW);
 
 	glBindVertexArray(vaoPatch);
-	model_mat = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-	glUniformMatrix4fv(uniforms.patch.model_matrix, 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
-	glUniformMatrix4fv(uniforms.patch.proj_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glPatchParameteri(GL_PATCH_VERTICES, controlPoints.size());
 	glDrawArrays(GL_PATCHES, 0, controlPoints.size());
 	glBindVertexArray(0);
 
+	//Draw Point and curves
 	glUseProgram(basicProgram);
-	glBindVertexArray(vaoPoint);
+	glUniformMatrix4fv(uniforms.basic.projview_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
 	glUniformMatrix4fv(uniforms.basic.model_matrix, 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
+
+	glBindVertexArray(vaoPoint);
 	glDrawArrays(GL_POINTS, 0, patchMng.getControlPoints().size());
 	glBindVertexArray(0);
 
 	glBindVertexArray(vaoCasteljauPoints);
-	glUniformMatrix4fv(uniforms.basic.model_matrix, 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
 	glDrawArrays(GL_POINTS, 0, patchMng.getCasteljauPoints().size());
 	glBindVertexArray(0);
 
+	//Draw grid
 	glUseProgram(gridProgram);
+	glUniformMatrix4fv(uniforms.grid.projview_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
 	glDrawArrays(GL_POINTS, 0, 1);
 
 	TwDraw();
@@ -225,14 +241,14 @@ void initialize()
 	rotation = Quaternion();
 	patchMng = PatchManager(4.0, 4.0);
 
-	posLights[0] = glm::vec2(0.0f, 1.0f);
-	posLights[1] = glm::vec2(1.0f, 0.0f);
+	posLights[0] = glm::vec3(0.0f, 1.0f, 2.0f);
+	posLights[1] = glm::vec3(1.0f, 0.0f, 0.0f);
 
 	colorLights[0] = glm::vec3(0.0f, 1.0f, 0.0f);
 	colorLights[1] = glm::vec3(1.0f, 0.0f, 0.0f);
 
 	glUseProgram(patchProgram);
-	glUniform2fv(glGetUniformLocation(patchProgram, "posLights"), 2, glm::value_ptr(posLights[0]));
+	glUniform3fv(glGetUniformLocation(patchProgram, "posLights"), 2, glm::value_ptr(posLights[0]));
 	glUniform3fv(glGetUniformLocation(patchProgram, "colorLights"), 2, glm::value_ptr(colorLights[0]));
 
 	/*VAO Points*/
@@ -329,9 +345,10 @@ void loadShaders()
 	uniforms.basic.position = glGetAttribLocation(basicProgram, "a_position");
 	uniforms.basic.color = glGetAttribLocation(basicProgram, "a_color");
 
-	uniforms.patch.model_matrix = glGetUniformLocation(patchProgram, "mv_matrix");
-	uniforms.patch.proj_matrix = glGetUniformLocation(patchProgram, "proj_matrix");
-	uniforms.patch.projview_matrix = glGetUniformLocation(patchProgram, "mvp");
+	uniforms.patch.model_matrix = glGetUniformLocation(patchProgram, "model_matrix");
+	uniforms.patch.view_matrix = glGetUniformLocation(patchProgram, "view_matrix");
+	uniforms.patch.projview_matrix = glGetUniformLocation(patchProgram, "projview_matrix");
+	uniforms.patch.display_normal = glGetUniformLocation(patchProgram, "display_normal");
 }
 
 template<typename T>
@@ -520,5 +537,28 @@ void __stdcall randomizeCallbackTw(void* clientData)
 	majBuffer(vertexBufferPoints, patchMng.getControlPoints());
 	glutPostRedisplay();
 }
+
+void TW_CALL SetWireframeCB(const void *value, void *clientData)
+{
+	(void)clientData;
+	display_wireframe = *(const int *)value;
+}
+void TW_CALL GetWireframeCB(void *value, void *clientData)
+{
+	(void)clientData;
+	*(int *)value = display_wireframe;
+}
+
+void TW_CALL SetNormalCB(const void *value, void *clientData)
+{
+	(void)clientData;
+	display_normal = *(const int *)value;
+}
+void TW_CALL GetNormalCB(void *value, void *clientData)
+{
+	(void)clientData;
+	*(int *)value = display_normal;
+}
+
 #pragma endregion
 

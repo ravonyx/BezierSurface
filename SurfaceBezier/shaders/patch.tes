@@ -1,14 +1,11 @@
 #version 410 core
 
 layout (quads, equal_spacing, cw) in;
-
-uniform mat4 mv_matrix;
-uniform mat4 proj_matrix;
-uniform mat4 mvp;
+uniform mat4 projview_matrix;
 
 out TES_OUT
 {
-    vec3 N;
+    vec3 normal;
 } tes_out;
 
 vec4 quadratic_bezier(vec4 A, vec4 B, vec4 C, float t)
@@ -56,7 +53,6 @@ void main(void)
     vec3 v1 = normalize(p2.xyz - p1.xyz);
     vec3 v2 = normalize(p3.xyz - p1.xyz);
 
-    tes_out.N = cross(v1, v2);
-
-    gl_Position = proj_matrix * p1;
+    tes_out.normal = cross(v1, v2);
+    gl_Position = projview_matrix * p1;
 }
