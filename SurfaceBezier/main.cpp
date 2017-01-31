@@ -34,6 +34,7 @@ int width = 1500;
 int height = 800;
 
 Quaternion rotation;
+glm::vec3 light_direction = glm::vec3(-0.5f, -0.5f, -0.5f);
 int display_normal = 0, display_wireframe = 0;
 
 GLint basicProgram, gridProgram, patchProgram;
@@ -140,13 +141,13 @@ int main(int argc, char** argv)
 	float refresh = 0.1f;
 	TwSetParam(bar, NULL, "refresh", TW_PARAM_FLOAT, 1, &refresh);
 	TwAddVarRO(bar, "Output", TW_TYPE_STDSTRING, &infos," label='Infos' ");
-	//TwAddVarRW(bar, "LightDir", TW_TYPE_DIR3F, &light_direction, " label='Light direction' opened=true help='Change the light direction.' ");
 	TwAddVarRO(bar, "Index", TW_TYPE_STDSTRING, &indexStr, " label='Index' help='Change index of the point' ");
 
 	TwAddVarCB(bar, "Wireframe", TW_TYPE_BOOL32, SetWireframeCB, GetWireframeCB, NULL, " label='Wireframe' key=e help='Display in wireframe' ");
 	TwAddVarCB(bar, "Normal", TW_TYPE_BOOL32, SetNormalCB, GetNormalCB, NULL, " label='Normal' key=e help='Display normals' ");
 
 	TwAddSeparator(bar, "settings object", "");
+	TwAddVarRW(bar, "LightDir", TW_TYPE_DIR3F, &light_direction, " label='Light direction' opened=true help='Change the light direction.' ");
 	TwAddVarRW(bar, "ObjRotation", TW_TYPE_QUAT4F, &rotation, " label='Object rotation' opened=true help='Change the object orientation.' ");
 	TwAddButton(bar, "Randomize points", &randomizeCallbackTw, nullptr, "");
 
@@ -183,7 +184,7 @@ void display(void)
 
 	//Draw patch
 	glUseProgram(patchProgram);
-	model_mat = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+	model_mat = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f)) * rotation.QuaternionToMatrix();
 	glUniformMatrix4fv(uniforms.patch.model_matrix, 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
 	glUniformMatrix4fv(uniforms.patch.projview_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
 	glUniformMatrix4fv(uniforms.patch.view_matrix, 1, GL_FALSE, (GLfloat*)&view[0][0]);
@@ -191,6 +192,8 @@ void display(void)
 		glUniform1i(uniforms.patch.display_normal, 1);
 	else
 		glUniform1i(uniforms.patch.display_normal, 0);
+	glm::vec3 lightDir = glm::vec3(light_direction.x, -light_direction.y, -light_direction.z);
+	glUniform3fv(glGetUniformLocation(patchProgram, "light_direction"), 1, &lightDir[0]);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferPatch);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * controlPoints.size(), controlPoints.data(), GL_DYNAMIC_DRAW);
@@ -241,7 +244,7 @@ void initialize()
 	rotation = Quaternion();
 	patchMng = PatchManager(4.0, 4.0);
 
-	posLights[0] = glm::vec3(0.0f, 1.0f, 2.0f);
+	posLights[0] = glm::vec3(0.0f, 5.0f, 0.0f);
 	posLights[1] = glm::vec3(1.0f, 0.0f, 0.0f);
 
 	colorLights[0] = glm::vec3(0.0f, 1.0f, 0.0f);
