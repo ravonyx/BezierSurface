@@ -244,7 +244,7 @@ void initialize()
 	rotation = Quaternion();
 	patchMng = PatchManager(4.0, 4.0);
 
-	posLights[0] = glm::vec3(0.0f, 5.0f, 0.0f);
+	posLights[0] = glm::vec3(0.0f, 1.0f, 0.0f);
 	posLights[1] = glm::vec3(1.0f, 0.0f, 0.0f);
 
 	colorLights[0] = glm::vec3(0.0f, 1.0f, 0.0f);
