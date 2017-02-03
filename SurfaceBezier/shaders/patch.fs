@@ -30,6 +30,7 @@ void main(void)
     vec3 normal = normalize(normal);
 	normal = vec3(model_matrix * vec4(normal, 1.0));
 	vec3 light_dir = vec3(posLights[0] - vec3(positionOut));
+	light_dir = normalize(light_dir);
 
 	//diffuse
 	vec3 diffuse = max(dot(normal, light_dir), 0.0) * diffuse_albedo;
@@ -45,7 +46,7 @@ void main(void)
 	}
 
 	float dist = length(light_dir);
-	float attenuation = 1.0 / (1.0 + 1.0 * pow(dist, 2));
+	float attenuation = 1.0 / (1.0 + 1.0 * pow(dist, 4));
 
 	if(display_normal == 1)
 		color = vec4(normal, 1.0);

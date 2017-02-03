@@ -2,6 +2,8 @@
 
 layout (quads, equal_spacing, cw) in;
 uniform mat4 projview_matrix;
+uniform mat4 model_matrix;
+out vec4 positionOut;
 
 const float epsilon = 0.001;
 out vec3 normal;
@@ -52,5 +54,6 @@ void main(void)
     normal = cross(v1, v2);
 
 	//output
+	positionOut = p1;
     gl_Position = projview_matrix * p1;
 }

@@ -206,6 +206,9 @@ void display(void)
 	else
 		glUniform1i(uniforms.patch.display_texture, 0);
 
+	posLights[0] = glm::vec3(light_direction.x, light_direction.y, light_direction.z);
+	glUniform3fv(glGetUniformLocation(patchProgram, "posLights"), 2, glm::value_ptr(posLights[0]));
+
 	glm::vec3 lightDir = glm::vec3(light_direction.x, -light_direction.y, -light_direction.z);
 	glUniform3fv(glGetUniformLocation(patchProgram, "light_direction"), 1, &lightDir[0]);
 
