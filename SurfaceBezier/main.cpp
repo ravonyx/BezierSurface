@@ -6,6 +6,7 @@
 #include "Camera.h"
 #include "EsgiShader.h"
 #include "PatchManager.h"
+#include "Tools.h"
 #pragma endregion
 
 #pragma region general_include
@@ -33,18 +34,20 @@ int current_index = 0;
 int width = 1500;
 int height = 800;
 
+GLuint mainTexture;
 Quaternion rotation;
 glm::vec3 light_direction = glm::vec3(-0.5f, -0.5f, -0.5f);
-int display_normal = 0, display_wireframe = 0;
+int display_normal = 0, display_texture = 0, display_wireframe = 0;
 
-GLint basicProgram, gridProgram, patchProgram;
 GLuint lightsBuffer;
+GLint basicProgram, gridProgram, patchProgram;
 GLuint vaoPoint, vaoCasteljauPoints, vaoPatch;
 GLuint vertexBufferPoints, vertexBufferColors, vertexBufferCasteljauPoints, vertexBufferPatch;
 
 Camera *cam;
 bool mode_ui, decrease;
 int index;
+int indexTexture;
 std::string indexStr;
 std::string infos;
 
@@ -53,10 +56,13 @@ PatchManager patchMng;
 #pragma region header_function
 static  void __stdcall exitCallbackTw(void* clientData);
 static  void __stdcall randomizeCallbackTw(void* clientData);
+static  void __stdcall changeTextureCallbackTw(void* clientData);
 void TW_CALL SetWireframeCB(const void *value, void *clientData);
 void TW_CALL GetWireframeCB(void *value, void *clientData);
 void TW_CALL SetNormalCB(const void *value, void *clientData);
 void TW_CALL GetNormalCB(void *value, void *clientData);
+void TW_CALL SetTextureCB(const void *value, void *clientData);
+void TW_CALL GetTextureCB(void *value, void *clientData);
 
 void display(void);
 void computePos(int unused);
@@ -91,6 +97,7 @@ struct
 		int     projview_matrix;
 		int     view_matrix;
 		int     display_normal;
+		int     display_texture;
 	} patch;
 	struct
 	{
@@ -137,19 +144,21 @@ int main(int argc, char** argv)
 
 	// Create a tweak bar
 	bar = TwNewBar("BezierSurface");
-	TwDefine(" BezierSurface size='200 300' color='86 101 115' valueswidth=fit ");
+	TwDefine(" BezierSurface size='200 400' color='86 101 115' valueswidth=fit ");
 	float refresh = 0.1f;
 	TwSetParam(bar, NULL, "refresh", TW_PARAM_FLOAT, 1, &refresh);
 	TwAddVarRO(bar, "Output", TW_TYPE_STDSTRING, &infos," label='Infos' ");
 	TwAddVarRO(bar, "Index", TW_TYPE_STDSTRING, &indexStr, " label='Index' help='Change index of the point' ");
 
-	TwAddVarCB(bar, "Wireframe", TW_TYPE_BOOL32, SetWireframeCB, GetWireframeCB, NULL, " label='Wireframe' key=e help='Display in wireframe' ");
-	TwAddVarCB(bar, "Normal", TW_TYPE_BOOL32, SetNormalCB, GetNormalCB, NULL, " label='Normal' key=e help='Display normals' ");
+	TwAddVarCB(bar, "Wireframe", TW_TYPE_BOOL32, SetWireframeCB, GetWireframeCB, NULL, " label='Wireframe' help='Display in wireframe' ");
+	TwAddVarCB(bar, "Normal", TW_TYPE_BOOL32, SetNormalCB, GetNormalCB, NULL, " label='Normal' help='Display normals' ");
+	TwAddVarCB(bar, "Texture", TW_TYPE_BOOL32, SetTextureCB, GetTextureCB, NULL, " label='Texture' help='Display texture' ");
 
 	TwAddSeparator(bar, "settings object", "");
 	TwAddVarRW(bar, "LightDir", TW_TYPE_DIR3F, &light_direction, " label='Light direction' opened=true help='Change the light direction.' ");
 	TwAddVarRW(bar, "ObjRotation", TW_TYPE_QUAT4F, &rotation, " label='Object rotation' opened=true help='Change the object orientation.' ");
 	TwAddButton(bar, "Randomize points", &randomizeCallbackTw, nullptr, "");
+	TwAddButton(bar, "Change texture", &changeTextureCallbackTw, nullptr, "");
 
 	TwAddSeparator(bar, "program", "");
 	TwAddButton(bar, "Exit", &exitCallbackTw, nullptr, "");
@@ -165,7 +174,7 @@ void display(void)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 	glViewport(0, 0, width, height);
-	glPointSize(5);
+	glPointSize(10);
 
 	//Parameters
 	glm::vec3 camPos = glm::vec3(cam->posx, cam->posy, cam->posz);
@@ -173,7 +182,6 @@ void display(void)
 	glm::mat4 view = cam->GetOrientation() * glm::translate(camPos);
 	glm::mat4 proj_view = proj * view;
 	glm::mat4 model_mat;
-
 
 	std::vector<Point> controlPoints = patchMng.getControlPoints();
 
@@ -188,12 +196,21 @@ void display(void)
 	glUniformMatrix4fv(uniforms.patch.model_matrix, 1, GL_FALSE, (GLfloat*)&model_mat[0][0]);
 	glUniformMatrix4fv(uniforms.patch.projview_matrix, 1, GL_FALSE, (GLfloat*)&proj_view[0][0]);
 	glUniformMatrix4fv(uniforms.patch.view_matrix, 1, GL_FALSE, (GLfloat*)&view[0][0]);
+
 	if(display_normal)
 		glUniform1i(uniforms.patch.display_normal, 1);
 	else
 		glUniform1i(uniforms.patch.display_normal, 0);
+	if (display_texture)
+		glUniform1i(uniforms.patch.display_texture, 1);
+	else
+		glUniform1i(uniforms.patch.display_texture, 0);
+
 	glm::vec3 lightDir = glm::vec3(light_direction.x, -light_direction.y, -light_direction.z);
 	glUniform3fv(glGetUniformLocation(patchProgram, "light_direction"), 1, &lightDir[0]);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, mainTexture);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferPatch);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * controlPoints.size(), controlPoints.data(), GL_DYNAMIC_DRAW);
@@ -243,6 +260,8 @@ void initialize()
 {
 	rotation = Quaternion();
 	patchMng = PatchManager(4.0, 4.0);
+	indexTexture = 0;
+	mainTexture = CreateTexture("img/minecraft.jpg");
 
 	posLights[0] = glm::vec3(0.0f, 1.0f, 0.0f);
 	posLights[1] = glm::vec3(1.0f, 0.0f, 0.0f);
@@ -352,6 +371,7 @@ void loadShaders()
 	uniforms.patch.view_matrix = glGetUniformLocation(patchProgram, "view_matrix");
 	uniforms.patch.projview_matrix = glGetUniformLocation(patchProgram, "projview_matrix");
 	uniforms.patch.display_normal = glGetUniformLocation(patchProgram, "display_normal");
+	uniforms.patch.display_texture = glGetUniformLocation(patchProgram, "display_texture");
 }
 
 template<typename T>
@@ -541,6 +561,21 @@ void __stdcall randomizeCallbackTw(void* clientData)
 	glutPostRedisplay();
 }
 
+static  void __stdcall changeTextureCallbackTw(void* clientData)
+{
+	indexTexture++;
+	if (indexTexture == 3)
+		indexTexture = 0;
+	if(indexTexture == 0)
+		mainTexture = CreateTexture("img/minecraft.jpg");
+	else if (indexTexture == 1)
+		mainTexture = CreateTexture("img/checker.jpg");
+	else if (indexTexture == 2)
+		mainTexture = CreateTexture("img/pacman.png");
+	glutPostRedisplay();
+
+}
+
 void TW_CALL SetWireframeCB(const void *value, void *clientData)
 {
 	(void)clientData;
@@ -562,6 +597,18 @@ void TW_CALL GetNormalCB(void *value, void *clientData)
 	(void)clientData;
 	*(int *)value = display_normal;
 }
+
+void TW_CALL SetTextureCB(const void *value, void *clientData)
+{
+	(void)clientData;
+	display_texture = *(const int *)value;
+}
+void TW_CALL GetTextureCB(void *value, void *clientData)
+{
+	(void)clientData;
+	*(int *)value = display_texture;
+}
+
 
 #pragma endregion
 

@@ -1,18 +1,17 @@
 #version 420 core
 
+layout(binding=0) uniform sampler2D mainTexture;
 out vec4 color;
 
-in TES_OUT
-{
-    vec3 normal;
-} fs_in;
-
+in vec3 normal;
 in vec4 positionOut;
+in vec2 texCoords;
 
 uniform vec3 light_direction;
 uniform vec3 posLights[2];
 uniform vec3 colorLights[2];
 uniform int display_normal;
+uniform int display_texture;
 uniform mat4 view;
 uniform mat4 model_matrix;
 
@@ -28,16 +27,8 @@ vec3 calcPointLight()
 
 void main(void)
 {
-    vec3 normal = normalize(fs_in.normal);
+    vec3 normal = normalize(normal);
 	normal = vec3(model_matrix * vec4(normal, 1.0));
-    /*vec4 c = vec4(1.0, -1.0, 0.0, 0.0) * normal.z +
-             vec4(0.0, 0.0, 0.0, 1.0);
-	for(int i = 0; i < 1; i++)
-	{
-		vec3 light_dir = vec3(posLights[i] - vec3(positionOut));
-	}*/
-
-	//vec4 pos = view * positionOut;
 	vec3 light_dir = vec3(posLights[0] - vec3(positionOut));
 
 	//diffuse
@@ -58,6 +49,8 @@ void main(void)
 
 	if(display_normal == 1)
 		color = vec4(normal, 1.0);
+	else if(display_texture == 1)
+		color = texture(mainTexture, texCoords);
 	else
 		color = vec4(diffuse * attenuation + specular * attenuation, 1.0);
 }
