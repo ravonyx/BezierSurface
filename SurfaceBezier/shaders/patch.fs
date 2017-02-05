@@ -9,11 +9,11 @@ in vec4 positionOut;
 in vec2 texCoords;
 
 uniform vec3 light_direction;
-uniform vec3 posLights[2];
+uniform vec3 pos_lights[2];
 uniform int display_normal;
 uniform int display_texture;
 uniform mat4 model_matrix;
-uniform vec3 camPos;
+uniform vec3 cam_pos;
 
 vec3 diffuse_albedo = vec3(0.5, 0.2, 0.7);
 vec3 specular_albedo = vec3(1.0);
@@ -23,7 +23,7 @@ vec3 calcPointLight(int i)
 {
 	vec3 colorOut;
 
-	vec3 light_dir = vec3(posLights[i] - vec3(positionOut));
+	vec3 light_dir = vec3(pos_lights[i] - vec3(positionOut));
 	light_dir = normalize(light_dir);
 
 	//diffuse
@@ -32,7 +32,7 @@ vec3 calcPointLight(int i)
 	//specular
 	vec3 specular;
     float intensity = max(dot(normal,light_dir), 0.0);
-	vec3 camToPos = normalize(vec3(positionOut) - camPos);
+	vec3 camToPos = normalize(vec3(positionOut) - cam_pos);
 	vec3 reflectDir = normalize(reflect(-light_dir, normal));
 	if (intensity > 0.0) 
 		specular = specular_albedo * pow(max(dot(reflectDir,camToPos), 0.0), specular_power);

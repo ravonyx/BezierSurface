@@ -100,6 +100,8 @@ struct
 		int     view_matrix;
 		int     display_normal;
 		int     display_texture;
+		int		pos_lights;
+		int		cam_pos;
 	} patch;
 	struct
 	{
@@ -180,9 +182,9 @@ void display(void)
 	glPointSize(10);
 
 	//Parameters
-	glm::vec3 camPos = glm::vec3(cam->posx, cam->posy, cam->posz);
+	glm::vec3 cam_pos = glm::vec3(cam->posx, cam->posy, cam->posz);
 	glm::mat4 proj = glm::perspective(45.0f, (float)width / height, 0.01f, 1000.0f);
-	glm::mat4 view = cam->GetOrientation() * glm::translate(camPos);
+	glm::mat4 view = cam->GetOrientation() * glm::translate(cam_pos);
 	glm::mat4 proj_view = proj * view;
 	glm::mat4 model_mat;
 
@@ -211,8 +213,8 @@ void display(void)
 
 	posLights[0] = glm::vec3(pos_light_1.x, pos_light_1.y, pos_light_1.z);
 	posLights[1] = glm::vec3(pos_light_2.x, pos_light_2.y, pos_light_2.z);
-	glUniform3fv(glGetUniformLocation(patchProgram, "posLights"), 2, glm::value_ptr(posLights[0]));
-	glUniform3fv(glGetUniformLocation(patchProgram, "camPos"), 1, glm::value_ptr(camPos));
+	glUniform3fv(uniforms.patch.pos_lights, 2, glm::value_ptr(posLights[0]));
+	glUniform3fv(uniforms.patch.cam_pos, 1, glm::value_ptr(cam_pos));
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, mainTexture);
@@ -367,6 +369,8 @@ void loadShaders()
 	uniforms.patch.projview_matrix = glGetUniformLocation(patchProgram, "projview_matrix");
 	uniforms.patch.display_normal = glGetUniformLocation(patchProgram, "display_normal");
 	uniforms.patch.display_texture = glGetUniformLocation(patchProgram, "display_texture");
+	uniforms.patch.pos_lights = glGetUniformLocation(patchProgram, "pos_lights");
+	uniforms.patch.cam_pos = glGetUniformLocation(patchProgram, "cam_pos");
 }
 
 template<typename T>
