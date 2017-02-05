@@ -147,7 +147,7 @@ int main(int argc, char** argv)
 
 	// Create a tweak bar
 	bar = TwNewBar("BezierSurface");
-	TwDefine(" BezierSurface size='300 500' color='86 101 115' valueswidth=fit ");
+	TwDefine(" BezierSurface size='250 500' color='86 101 115' valueswidth=125 ");
 	float refresh = 0.1f;
 	TwSetParam(bar, NULL, "refresh", TW_PARAM_FLOAT, 1, &refresh);
 	TwAddVarRO(bar, "Output", TW_TYPE_STDSTRING, &infos," label='Infos' ");
@@ -159,7 +159,7 @@ int main(int argc, char** argv)
 
 	TwAddSeparator(bar, "settings object", "");
 	TwAddVarRW(bar, "LightPos1", TW_TYPE_DIR3F, &pos_light_1, " label='Light pos 1' opened=false help='Change the light pos number 1.' ");
-	TwAddVarRW(bar, "LightPos2", TW_TYPE_DIR3F, &pos_light_2, " label='Light pos 1' opened=false help='Change the light pos number 2.' ");
+	TwAddVarRW(bar, "LightPos2", TW_TYPE_DIR3F, &pos_light_2, " label='Light pos 2' opened=false help='Change the light pos number 2.' ");
 	TwAddVarRW(bar, "ObjRotation", TW_TYPE_QUAT4F, &rotation, " label='Object rotation' opened=true help='Change the object orientation.' ");
 	TwAddButton(bar, "Reset rotation", &resetRotation, nullptr, "");
 	TwAddButton(bar, "Change texture", &changeTextureCallbackTw, nullptr, "");
