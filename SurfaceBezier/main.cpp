@@ -36,7 +36,8 @@ int height = 800;
 
 GLuint mainTexture;
 Quaternion rotation;
-glm::vec3 light_direction = glm::vec3(-0.5f, -0.5f, -0.5f);
+glm::vec3 pos_light_1 = glm::vec3(0.5f, 1.0f, 0.0f);
+glm::vec3 pos_light_2 = glm::vec3(-0.5f, 1.0f, 0.0f);
 int display_normal = 0, display_texture = 0, display_wireframe = 0;
 
 GLuint lightsBuffer;
@@ -57,6 +58,7 @@ PatchManager patchMng;
 static  void __stdcall exitCallbackTw(void* clientData);
 static  void __stdcall randomizeCallbackTw(void* clientData);
 static  void __stdcall changeTextureCallbackTw(void* clientData);
+static  void __stdcall resetRotation(void* clientData);
 void TW_CALL SetWireframeCB(const void *value, void *clientData);
 void TW_CALL GetWireframeCB(void *value, void *clientData);
 void TW_CALL SetNormalCB(const void *value, void *clientData);
@@ -106,7 +108,6 @@ struct
 } uniforms;
 
 glm::vec3     posLights[2];
-glm::vec3     colorLights[2];
 
 int main(int argc, char** argv)
 {
@@ -144,7 +145,7 @@ int main(int argc, char** argv)
 
 	// Create a tweak bar
 	bar = TwNewBar("BezierSurface");
-	TwDefine(" BezierSurface size='200 400' color='86 101 115' valueswidth=fit ");
+	TwDefine(" BezierSurface size='300 500' color='86 101 115' valueswidth=fit ");
 	float refresh = 0.1f;
 	TwSetParam(bar, NULL, "refresh", TW_PARAM_FLOAT, 1, &refresh);
 	TwAddVarRO(bar, "Output", TW_TYPE_STDSTRING, &infos," label='Infos' ");
@@ -155,10 +156,12 @@ int main(int argc, char** argv)
 	TwAddVarCB(bar, "Texture", TW_TYPE_BOOL32, SetTextureCB, GetTextureCB, NULL, " label='Texture' help='Display texture' ");
 
 	TwAddSeparator(bar, "settings object", "");
-	TwAddVarRW(bar, "LightDir", TW_TYPE_DIR3F, &light_direction, " label='Light direction' opened=true help='Change the light direction.' ");
+	TwAddVarRW(bar, "LightPos1", TW_TYPE_DIR3F, &pos_light_1, " label='Light pos 1' opened=false help='Change the light pos number 1.' ");
+	TwAddVarRW(bar, "LightPos2", TW_TYPE_DIR3F, &pos_light_2, " label='Light pos 1' opened=false help='Change the light pos number 2.' ");
 	TwAddVarRW(bar, "ObjRotation", TW_TYPE_QUAT4F, &rotation, " label='Object rotation' opened=true help='Change the object orientation.' ");
-	TwAddButton(bar, "Randomize points", &randomizeCallbackTw, nullptr, "");
+	TwAddButton(bar, "Reset rotation", &resetRotation, nullptr, "");
 	TwAddButton(bar, "Change texture", &changeTextureCallbackTw, nullptr, "");
+	TwAddButton(bar, "Randomize points", &randomizeCallbackTw, nullptr, "");
 
 	TwAddSeparator(bar, "program", "");
 	TwAddButton(bar, "Exit", &exitCallbackTw, nullptr, "");
@@ -206,11 +209,10 @@ void display(void)
 	else
 		glUniform1i(uniforms.patch.display_texture, 0);
 
-	posLights[0] = glm::vec3(light_direction.x, light_direction.y, light_direction.z);
+	posLights[0] = glm::vec3(pos_light_1.x, pos_light_1.y, pos_light_1.z);
+	posLights[1] = glm::vec3(pos_light_2.x, pos_light_2.y, pos_light_2.z);
 	glUniform3fv(glGetUniformLocation(patchProgram, "posLights"), 2, glm::value_ptr(posLights[0]));
-
-	glm::vec3 lightDir = glm::vec3(light_direction.x, -light_direction.y, -light_direction.z);
-	glUniform3fv(glGetUniformLocation(patchProgram, "light_direction"), 1, &lightDir[0]);
+	glUniform3fv(glGetUniformLocation(patchProgram, "camPos"), 1, glm::value_ptr(camPos));
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, mainTexture);
@@ -265,16 +267,6 @@ void initialize()
 	patchMng = PatchManager(4.0, 4.0);
 	indexTexture = 0;
 	mainTexture = CreateTexture("img/minecraft.jpg");
-
-	posLights[0] = glm::vec3(0.0f, 1.0f, 0.0f);
-	posLights[1] = glm::vec3(1.0f, 0.0f, 0.0f);
-
-	colorLights[0] = glm::vec3(0.0f, 1.0f, 0.0f);
-	colorLights[1] = glm::vec3(1.0f, 0.0f, 0.0f);
-
-	glUseProgram(patchProgram);
-	glUniform3fv(glGetUniformLocation(patchProgram, "posLights"), 2, glm::value_ptr(posLights[0]));
-	glUniform3fv(glGetUniformLocation(patchProgram, "colorLights"), 2, glm::value_ptr(colorLights[0]));
 
 	/*VAO Points*/
 	glGenVertexArrays(1, &vaoPoint);
@@ -577,6 +569,12 @@ static  void __stdcall changeTextureCallbackTw(void* clientData)
 		mainTexture = CreateTexture("img/pacman.png");
 	glutPostRedisplay();
 
+}
+
+static  void __stdcall resetRotation(void* clientData)
+{
+	rotation = Quaternion();
+	glutPostRedisplay();
 }
 
 void TW_CALL SetWireframeCB(const void *value, void *clientData)
