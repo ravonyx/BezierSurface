@@ -254,6 +254,7 @@ void reshape(int w, int h)
 {
 	width = w;
 	height = h;
+	TwWindowSize(w, h);
 	glViewport(0, 0, width, height);
 }
 
